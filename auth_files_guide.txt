@@ -1,0 +1,345 @@
+Auth Module File Guide
+======================
+
+Purpose of this file
+--------------------
+This file explains what each auth-related file is doing, why it exists, and where to make changes when the auth module grows. The goal is to make future work predictable instead of guessing which file should hold a new piece of logic.
+
+Current auth flow summary
+-------------------------
+1. Client gets CSRF cookie from Sanctum.
+2. Client sends register or login request.
+3. Form Request validates the input.
+4. Controller passes validated data into a service.
+5. Service performs the business logic.
+6. Controller returns the standardized API response.
+7. Exception handler formats validation and unauthorized errors consistently.
+
+Main files and what they do
+---------------------------
+
+1. routes/api.php
+- Defines the public auth endpoints and the protected auth endpoints.
+- Public:
+  - POST /api/auth/register
+  - POST /api/auth/login
+  - POST /api/auth/forgot-password
+  - POST /api/auth/reset-password
+- Protected:
+  - POST /api/auth/logout
+  - GET /api/auth/me
+
+When to change this file
+- Add a new auth endpoint
+- Change endpoint naming
+- Move an endpoint behind `auth:sanctum`
+
+2. app/Http/Controllers/Controller.php
+- Pulls in the shared API response trait.
+- Lets all child controllers return the same success/error shape without duplicate code.
+
+When to change this file
+- Only if the shared response behavior needs to change for the whole API
+
+3. app/Support/Http/ApiResponse.php
+- Contains helper methods for success and error JSON responses.
+- Keeps response structure consistent across controllers.
+
+When to change this file
+- Add metadata support across all responses
+- Change the standard response contract
+- Add pagination response helpers later if needed
+
+4. app/Exceptions/Handler.php
+- Converts Laravel validation exceptions into the project response shape
+- Converts unauthenticated access into:
+  {
+    "success": false,
+    "message": "Unauthorized."
+  }
+
+When to change this file
+- Change global API error formatting
+- Add custom handling for authorization or domain-specific exceptions later
+
+5. app/Http/Kernel.php
+- Enables `EnsureFrontendRequestsAreStateful` in the API middleware group.
+- This is necessary for Sanctum SPA cookie authentication.
+
+When to change this file
+- If auth transport changes
+- If extra middleware is needed for all API requests
+
+6. config/cors.php
+- Restricts allowed origins using frontend environment values.
+- Enables credentialed requests for cookie auth.
+
+When to change this file
+- Frontend domain changes
+- Additional frontend origins are introduced
+- Cookie auth behavior needs to be adjusted
+
+7. config/session.php
+- Uses env-driven same-site cookie behavior.
+- Helps future production cookie tuning without changing code again.
+
+When to change this file
+- Session cookie behavior changes between environments
+- Production requires `same_site=none` and secure cookies
+
+8. config/app.php
+- Stores `frontend_url`.
+- Used for building frontend reset password URLs.
+
+When to change this file
+- Frontend URL handling changes
+- More frontend-driven URLs are introduced
+
+9. app/Providers/AppServiceProvider.php
+- Overrides Laravel’s reset password URL generation.
+- Sends reset links to the Next.js frontend reset page instead of the backend.
+
+When to change this file
+- Frontend reset route changes
+- Email verification URLs are added later
+
+10. app/Http/Requests/ApiRequest.php
+- Shared base Form Request for API requests.
+- Currently just returns `authorize = true`.
+
+When to change this file
+- Add shared request behavior for all API requests
+- Add common trimming or helper methods later
+
+11. app/Http/Requests/Auth/RegisterRequest.php
+- Validates registration input.
+- Keeps controller free from validation rules.
+
+When to change this file
+- Add username
+- Add phone number
+- Add stronger or different password rules
+- Add invite code requirement
+
+12. app/Http/Requests/Auth/LoginRequest.php
+- Validates login payload.
+- Supports `remember` if the frontend starts sending it.
+
+When to change this file
+- Login identifier changes from email to username or phone
+- MFA step is added later
+
+13. app/Http/Requests/Auth/ForgotPasswordRequest.php
+- Validates the forgot-password payload.
+
+When to change this file
+- The platform supports multiple login identifiers
+
+14. app/Http/Requests/Auth/ResetPasswordRequest.php
+- Validates token, email, password, and confirmation for reset-password.
+
+When to change this file
+- Password policy changes
+- Reset flow adds extra checks
+
+15. app/Http/Controllers/Auth/RegisterController.php
+- Calls `RegisterService`.
+- Returns the standard success response with the auth payload.
+
+When to change this file
+- Rarely. Prefer keeping new logic in the service or request.
+
+16. app/Http/Controllers/Auth/LoginController.php
+- Calls `LoginService`.
+- Returns authenticated user payload on success.
+
+When to change this file
+- Rarely. Add logic here only if it is HTTP-only behavior.
+
+17. app/Http/Controllers/Auth/LogoutController.php
+- Logs out the current user from the web guard.
+- Invalidates the session if a session exists.
+
+When to change this file
+- Logout behavior changes
+- Platform adds device/session management later
+
+18. app/Http/Controllers/Auth/MeController.php
+- Returns the authenticated user payload using the shared auth response builder.
+
+When to change this file
+- The me endpoint needs extra contextual data such as active organization
+
+19. app/Http/Controllers/Auth/ForgotPasswordController.php
+- Delegates reset-link dispatch to the forgot-password service.
+- Keeps the response generic for security.
+
+When to change this file
+- Rarely. Usually only for HTTP-specific concerns.
+
+20. app/Http/Controllers/Auth/ResetPasswordController.php
+- Delegates password reset completion to the reset-password service.
+
+When to change this file
+- Rarely. Usually only for response or transport concerns.
+
+21. app/Services/Auth/RegisterService.php
+- Creates the user in a transaction.
+- Logs the user in.
+- Regenerates session if the request is stateful.
+- Returns the standardized authenticated payload.
+
+When to change this file
+- Add registration-side effects
+- Create organization automatically
+- Trigger welcome email
+- Record audit log
+
+22. app/Services/Auth/LoginService.php
+- Attempts login through the web guard.
+- Throws a validation exception for bad credentials.
+- Regenerates session when available.
+- Returns the standardized auth payload.
+
+When to change this file
+- Add login throttling behavior beyond Laravel defaults
+- Add account status checks like suspended or disabled
+- Add MFA challenge logic
+
+23. app/Services/Auth/ForgotPasswordService.php
+- Uses Laravel’s password broker to send reset links.
+
+When to change this file
+- Support custom password reset notifications
+- Add platform-specific auditing
+
+24. app/Services/Auth/ResetPasswordService.php
+- Completes password reset through the password broker.
+- Updates password and remember token.
+- Fires the `PasswordReset` event.
+
+When to change this file
+- Add forced logout of all devices
+- Add audit logging
+- Add password history checks
+
+25. app/Services/Auth/AuthResponseService.php
+- Builds the shared authenticated response payload.
+- Central place for `user` and `onboarding`.
+
+When to change this file
+- Add organization context
+- Add permissions summary
+- Add current role
+- Add feature flags for the frontend
+
+26. app/Http/Resources/AuthUserResource.php
+- Defines which user fields go back to the frontend.
+- Prevents accidental exposure of model fields.
+
+When to change this file
+- Add profile photo
+- Add last login
+- Add organization summary
+- Add public settings that frontend needs
+
+27. app/Models/User.php
+- Eloquent user model.
+- Holds fillable, hidden, and cast settings.
+- Already includes Sanctum support with `HasApiTokens`.
+
+When to change this file
+- Add relationships such as organizations and memberships
+- Add profile fields
+- Add helper methods for auth-related state
+
+28. tests/Feature/Auth/AuthEndpointsTest.php
+- Covers register, login, logout, me, forgot-password, and reset-password.
+- Validates response shape and core auth behavior.
+
+When to change this file
+- Any time auth contracts or behavior changes
+- Add more scenarios before changing auth logic
+
+29. backend_work_log.txt
+- Human-readable change history for backend chunks.
+- Useful for handoff, audit, and onboarding.
+
+When to change this file
+- Append a new section every time a chunk or major feature is completed
+
+30. postman_auth_collection.json
+- Importable Postman collection for auth testing.
+- Contains a collection-level pre-request script that calls `/sanctum/csrf-cookie` before write requests, reads the `XSRF-TOKEN` cookie from the Postman cookie jar, decodes it, and injects the `X-XSRF-TOKEN` header automatically.
+
+When to change this file
+- Add more backend endpoints to the Postman test set
+- Change environment variable names
+- Adjust the auto-CSRF flow for a different auth transport
+
+31. postman_local_environment.json
+- Importable Postman environment for local backend testing.
+- Defines `base_url`, `frontend_origin`, and the decoded XSRF token variable used by the collection.
+
+When to change this file
+- Backend local URL changes
+- Frontend origin changes
+- Additional environment variables are needed for new requests
+
+If we add more auth-related features, where should changes go?
+--------------------------------------------------------------
+
+Case 1: Add profile update endpoint
+- routes/api.php
+- app/Http/Requests/Auth or Profile for validation
+- new controller under app/Http/Controllers/Auth or Profile
+- new service under app/Services/Auth or Profile
+- app/Http/Resources/AuthUserResource.php if response fields change
+- tests/Feature/Auth or tests/Feature/Profile
+
+Case 2: Add email verification
+- app/Models/User.php if the model must implement email verification behavior
+- app/Providers/AppServiceProvider.php if frontend URL generation is needed
+- routes/api.php for verification routes
+- new controllers and services
+- tests for verification flow
+
+Case 3: Add organization context after signup
+- app/Services/Auth/RegisterService.php if registration starts an onboarding record or organization
+- app/Services/Auth/AuthResponseService.php to include real org context
+- app/Http/Resources/AuthUserResource.php only if user-facing fields also change
+- database migrations for organizations and memberships
+- app/Models/User.php for new relationships
+- tests/Feature/Auth/AuthEndpointsTest.php and new organization tests
+
+Case 4: Add roles or permissions in auth payload
+- app/Services/Auth/AuthResponseService.php
+- possibly app/Http/Resources/AuthUserResource.php
+- new policy/gate files
+- tests that lock response structure
+
+Case 5: Add account suspension or disabled status
+- database migration to add status field
+- app/Models/User.php
+- app/Services/Auth/LoginService.php to block login
+- app/Services/Auth/RegisterService.php if default status must be assigned
+- tests for blocked login
+
+General rule for future changes
+-------------------------------
+- Validation change: go to Form Request
+- Business rule change: go to Service
+- Response shape change: go to Resource or AuthResponseService
+- Route exposure change: go to routes/api.php
+- Global API error shape: go to Exception Handler
+- Cookie, Sanctum, or CORS behavior: go to config files and Kernel
+- User database fields or relationships: go to migration and User model
+- Any behavior change must also update the feature tests
+
+Recommended future additions for this auth module
+-------------------------------------------------
+- Add a dedicated status column on users if account suspension is needed
+- Add email verification if account trust becomes important
+- Add organization onboarding persistence in the next chunk
+- Add audit logging later for login and password reset events if support/admin visibility becomes necessary
+- Add rate limit tuning for auth endpoints if abuse appears during testing

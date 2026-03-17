@@ -1,0 +1,167 @@
+Backend Testing Guide
+=====================
+
+This file documents the current backend testing flow and the issues we hit while integrating the frontend with Laravel Sanctum.
+
+Current tested areas
+--------------------
+- Auth foundation
+- Organization access request flow
+- Super-admin organization provisioning flow
+
+Important product rule
+----------------------
+- Users can register directly.
+- Users cannot create organizations directly.
+- Users must request organization access.
+- Only `super_admin` can create organizations.
+
+Local environment rules
+-----------------------
+Use `localhost` consistently for browser-based frontend testing.
+
+Backend `.env`
+```env
+APP_URL=http://localhost:8000
+FRONTEND_URL=http://localhost:3000
+FRONTEND_URLS=http://localhost:3000
+SANCTUM_STATEFUL_DOMAINS=localhost:3000
+```
+
+Frontend `.env.local`
+```env
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api
+NEXT_PUBLIC_APP_ORIGIN=http://localhost:3000
+```
+
+Why this matters
+----------------
+During integration, `localhost` on the frontend and `127.0.0.1` on the backend caused Sanctum CSRF and cookie failures.
+
+Important resolved issues
+-------------------------
+
+1. CSRF token mismatch in Postman
+- Cause:
+  - `X-XSRF-TOKEN` did not match the current `XSRF-TOKEN` cookie
+  - or stale cookies were reused
+- Fix:
+  - run `Get CSRF Cookie` before POST requests
+  - decode the XSRF token when using Postman manually
+  - clear cookies and retry after `.env` or host changes
+
+2. Frontend CSRF token mismatch
+- Cause:
+  - frontend was using `localhost:3000` while API was using `127.0.0.1:8000`
+  - Axios cross-origin XSRF behavior was incomplete
+- Fix:
+  - moved frontend and backend to `localhost`
+  - enabled `withXSRFToken: true`
+  - kept `withCredentials: true`
+  - removed forced browser headers from Axios
+
+3. API internal server error on protected routes
+- Cause:
+  - unauthenticated API requests tried to redirect to a missing web `login` route
+- Fix:
+  - updated auth middleware so API routes return JSON `401 Unauthorized`
+
+4. Postman automatic CSRF flow was unreliable
+- Cause:
+  - collection-level async CSRF bootstrap could race against the main request
+- Fix:
+  - changed to a stable explicit `Get CSRF Cookie` step
+
+Backend startup for local testing
+---------------------------------
+1. Clear config/cache:
+   `php artisan optimize:clear`
+
+2. Run migrations:
+   `php artisan migrate`
+
+3. Start backend:
+   `php artisan serve --host=localhost --port=8000`
+
+Browser frontend testing flow
+-----------------------------
+
+1. Start frontend:
+   `npm run dev`
+
+2. Open:
+   - `http://localhost:3000/register`
+   - `http://localhost:3000/login`
+   - `http://localhost:3000/forgot-password`
+   - `http://localhost:3000/reset-password?token=test-token&email=user@example.com`
+   - `http://localhost:3000/dashboard/organization`
+
+3. In DevTools Network tab, expected auth request order is:
+   - `GET http://localhost:8000/api/auth/me` may return `401`
+   - `GET http://localhost:8000/sanctum/csrf-cookie`
+   - `POST http://localhost:8000/api/auth/register` or `POST http://localhost:8000/api/auth/login`
+
+4. After successful register:
+   - user is redirected to `/dashboard`
+   - if they want organization access, they click the sidebar `Organization` item
+
+5. On `/dashboard/organization`:
+   - frontend loads `GET /api/organization-access-requests/me`
+   - user can submit `POST /api/organization-access-requests`
+
+Postman testing flow
+--------------------
+
+Use these files:
+- `postman_auth_collection.json`
+- `postman_local_environment.json`
+
+Use `localhost`, not `127.0.0.1`, when manually checking browser-based frontend integration.
+
+Recommended Postman order
+-------------------------
+1. `GET /sanctum/csrf-cookie`
+2. `POST /api/auth/register`
+3. `POST /api/auth/login`
+4. `GET /api/auth/me`
+5. `POST /api/organization-access-requests`
+6. `GET /api/organization-access-requests/me`
+7. login as super admin
+8. `GET /api/admin/organization-access-requests`
+9. `POST /api/admin/organizations`
+
+Migration tracking note
+-----------------------
+Current organization-related migrations:
+- `2026_03_15_000001_add_platform_role_to_users_table.php`
+- `2026_03_15_000002_create_organizations_table.php`
+- `2026_03_15_000003_create_organization_members_table.php`
+- `2026_03_15_000004_create_organization_access_requests_table.php`
+
+Always run:
+`php artisan migrate`
+
+Common problems and fixes
+-------------------------
+
+419 CSRF token mismatch
+- clear browser or Postman cookies
+- make sure hostnames match
+- rerun `/sanctum/csrf-cookie`
+- restart backend after `.env` changes
+
+401 Unauthorized
+- user is not logged in
+- session cookie is missing or expired
+
+403 Forbidden
+- normal user tried to call a super-admin route
+
+422 Validation error
+- request payload is missing required fields
+- duplicate pending organization request exists
+
+500 Server error
+- check `.env`
+- run migrations
+- check `storage/logs/laravel.log`

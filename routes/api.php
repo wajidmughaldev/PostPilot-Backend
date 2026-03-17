@@ -1,6 +1,15 @@
 <?php
 
-use Illuminate\Http\Request;
+use App\Http\Controllers\Auth\ForgotPasswordController;
+use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\LogoutController;
+use App\Http\Controllers\Auth\MeController;
+use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\Auth\ResetPasswordController;
+use App\Http\Controllers\Admin\CreateOrganizationController;
+use App\Http\Controllers\Admin\ListOrganizationAccessRequestsController;
+use App\Http\Controllers\Organization\MyOrganizationAccessRequestsController;
+use App\Http\Controllers\Organization\StoreOrganizationAccessRequestController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -14,6 +23,34 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-    return $request->user();
+Route::prefix('auth')->group(function () {
+    Route::post('register', RegisterController::class);
+    Route::post('login', LoginController::class);
+    Route::post('forgot-password', ForgotPasswordController::class);
+    Route::post('reset-password', ResetPasswordController::class);
+
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::post('logout', LogoutController::class);
+        Route::get('me', MeController::class);
+    });
+});
+
+Route::prefix('social-accounts')->group(function () {
+    //
+});
+
+Route::prefix('posts')->group(function () {
+    //
+});
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::prefix('organization-access-requests')->group(function () {
+        Route::post('/', StoreOrganizationAccessRequestController::class);
+        Route::get('/me', MyOrganizationAccessRequestsController::class);
+    });
+
+    Route::prefix('admin')->middleware('can:access-super-admin')->group(function () {
+        Route::get('organization-access-requests', ListOrganizationAccessRequestsController::class);
+        Route::post('organizations', CreateOrganizationController::class);
+    });
 });

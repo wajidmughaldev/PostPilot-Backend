@@ -1,0 +1,96 @@
+Organization Foundation File Guide
+==================================
+
+Purpose of this file
+--------------------
+This file explains the organization foundation added after auth. It focuses on the revised product rule that users cannot create organizations directly. Users can only submit organization access requests, and only a super admin can create an organization after review.
+
+Migrations and why they exist
+-----------------------------
+
+1. database/migrations/2026_03_15_000001_add_platform_role_to_users_table.php
+- Adds `platform_role` to users.
+- Needed to distinguish normal users from `super_admin`.
+- This is platform-level access, not organization membership role.
+
+2. database/migrations/2026_03_15_000002_create_organizations_table.php
+- Creates the `organizations` table.
+- Stores the organization record that will later own social accounts, posts, schedules, logs, and settings.
+- Includes `created_by` so super-admin-created organizations stay auditable.
+
+3. database/migrations/2026_03_15_000003_create_organization_members_table.php
+- Creates the membership table between users and organizations.
+- Stores per-organization role data such as `organization_admin` and `user`.
+- Keeps org access scoped through memberships instead of through user table columns.
+
+4. database/migrations/2026_03_15_000004_create_organization_access_requests_table.php
+- Stores user requests to become an organization customer.
+- Tracks requested organization name, contact details, message, approval status, reviewer, review notes, and linked organization.
+- This table is the audit trail for the “contact us to become an organization” flow.
+
+Main files and responsibilities
+-------------------------------
+
+1. app/Models/Organization.php
+- Represents an approved organization.
+
+2. app/Models/OrganizationMember.php
+- Represents a user membership inside an organization.
+
+3. app/Models/OrganizationAccessRequest.php
+- Represents the request submitted by a user asking for organization access.
+
+4. app/Models/User.php
+- Now includes `platform_role`, org memberships, and org access request relationships.
+
+5. app/Providers/AuthServiceProvider.php
+- Defines the `access-super-admin` gate for admin-only organization creation.
+
+6. app/Http/Requests/Organization/StoreOrganizationAccessRequest.php
+- Validates the user-side “become an organization” request.
+
+7. app/Http/Requests/Admin/CreateOrganizationFromRequest.php
+- Validates the super-admin organization provisioning request.
+
+8. app/Services/Organization/OrganizationAccessRequestService.php
+- Handles user submission and listing of access requests.
+
+9. app/Services/Organization/OrganizationProvisioningService.php
+- Handles organization creation from an approved request, initial membership, and notification dispatch.
+
+10. app/Http/Controllers/Organization/StoreOrganizationAccessRequestController.php
+- User endpoint for submitting an organization access request.
+
+11. app/Http/Controllers/Organization/MyOrganizationAccessRequestsController.php
+- User endpoint for listing only the current user’s own organization requests.
+
+12. app/Http/Controllers/Admin/ListOrganizationAccessRequestsController.php
+- Super-admin endpoint for reviewing all access requests.
+
+13. app/Http/Controllers/Admin/CreateOrganizationController.php
+- Super-admin endpoint for approving a request and creating the organization.
+
+14. app/Http/Resources/OrganizationResource.php
+- Shapes organization payloads returned to the frontend.
+
+15. app/Http/Resources/OrganizationAccessRequestResource.php
+- Shapes organization access request payloads returned to the frontend.
+
+16. app/Notifications/OrganizationApprovedNotification.php
+- Emails the requester when their organization access has been approved and provisioned.
+
+17. app/Services/Auth/AuthResponseService.php
+- Now includes current organization context and organization request status in the auth payload.
+
+18. tests/Feature/Organization/OrganizationAccessRequestTest.php
+- Covers user-side request submission and request listing.
+
+19. tests/Feature/Admin/OrganizationProvisioningTest.php
+- Covers super-admin provisioning, admin-only access, and updated auth context.
+
+Where future related changes should go
+--------------------------------------
+- Rejection flow: keep it on `organization_access_requests` with admin service/controller updates.
+- Support notes or review states: extend the request table and provisioning/review services.
+- Multi-organization switching: expand auth response and membership handling, not the users table.
+- Frontend dashboard status views: consume `organization_access_requests` and `auth/me` organization context.
