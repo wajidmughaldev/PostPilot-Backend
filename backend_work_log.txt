@@ -1,0 +1,182 @@
+========================================
+2026-03-14 / SESSION
+Chunk 2 - Auth Foundation With Sanctum SPA Cookies
+========================================
+
+1. What was added
+- Added the day-one authentication API for register, login, logout, me, forgot password, and reset password under the `/api/auth` route group.
+- Added dedicated Form Request classes for each auth endpoint so validation stays out of controllers and the request contract remains stable for the Next.js frontend.
+- Added auth service classes to handle registration, login, password reset link dispatch, password reset completion, and authenticated user payload formatting.
+- Added `AuthUserResource` and a shared auth response payload that includes a first-pass onboarding state for future organization setup.
+- Added a reusable API response trait and exception handler JSON formatting so success, validation failure, and unauthorized responses follow one predictable structure.
+- Enabled Sanctum stateful SPA middleware and updated CORS/session-related configuration to support credentialed requests from the frontend.
+- Added feature tests for the auth flow and created this backend work log file for ongoing chunk-by-chunk tracking.
+
+2. What each part does
+- The auth controllers now act only as orchestration points. They receive validated input, call the appropriate service, and return the standardized JSON response shape expected by the frontend.
+- The Form Requests define endpoint-level validation rules for registration, login, forgot password, and reset password so invalid input fails consistently before reaching business logic.
+- `RegisterService` creates the user inside a database transaction, signs the user into the web guard, regenerates the session, and returns the authenticated payload.
+- `LoginService` checks credentials through Laravel authentication, regenerates the session on success, and returns the same authenticated payload shape used by registration and the me endpoint.
+- `ForgotPasswordService` uses Laravel’s password broker to trigger the reset notification flow without exposing whether an email exists in the system.
+- `ResetPasswordService` completes password changes through the password broker, updates the remember token, and fires Laravel’s password reset event.
+- `AuthResponseService` centralizes the authenticated response body so register, login, and me all return the same frontend-friendly structure.
+- `AuthUserResource` exposes stable user fields only, which reduces the chance of accidental data leakage as the user model grows later.
+- The exception handler now formats validation and unauthenticated errors into the agreed API contract, removing inconsistency across auth endpoints.
+- `AppServiceProvider` now rewrites password reset URLs to the frontend reset page so the user completes the reset inside the Next.js app instead of the backend.
+- The CORS and Sanctum changes allow credentialed SPA requests and prepare the backend for same-site or subdomain-based deployment.
+
+3. Important implementation decisions
+- Sanctum was configured in SPA cookie mode because the current plan expects a Next.js dashboard using session-based authentication rather than long-lived API tokens for first-party frontend requests.
+- A shared API response trait was introduced to keep endpoint responses predictable without pushing response formatting into every controller method manually.
+- Auth payload building was extracted into a dedicated service so onboarding metadata can be expanded later without rewriting each auth endpoint separately.
+- The onboarding response currently returns `organization_required: true` and `organization_id: null` so the frontend can route new users into the later workspace onboarding flow without coupling this chunk to organization creation.
+- Password reset URLs are built from `FRONTEND_URL` so the reset flow stays aligned with frontend routing and remains configurable between local and production environments.
+- CORS was changed from wildcard origins to explicit frontend URLs because Sanctum SPA cookie authentication requires credentialed requests and should not run with unrestricted cross-origin settings.
+- Validation and unauthorized JSON formatting were placed in the exception handler so future API modules can inherit the same error contract automatically.
+
+4. Notes for frontend integration
+- The frontend should call `/sanctum/csrf-cookie` before posting to login or register when using Sanctum SPA cookie authentication.
+- Auth endpoints available now are `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`, `POST /api/auth/forgot-password`, and `POST /api/auth/reset-password`.
+- Successful authenticated responses return `data.user` and `data.onboarding`, where `onboarding.organization_required` is currently always `true`.
+- Validation failures return `success: false`, the message `The given data was invalid.`, and an `errors` object keyed by field name.
+- Unauthorized requests return `success: false` and the message `Unauthorized.` with HTTP 401.
+- The frontend reset-password page should accept `token` and `email` query parameters because the backend now generates reset links in that format.
+- For production cookie auth, frontend and backend domain settings must match the deployed domain strategy, especially `SANCTUM_STATEFUL_DOMAINS`, `SESSION_DOMAIN`, and secure cookie behavior.
+
+5. Pending or next steps
+- Add organization/workspace creation and membership flow in the next chunk so onboarding can move from a placeholder flag to real tenant context.
+- Add organization-aware auth context after the organization tables exist so the me endpoint can include active organization information safely.
+- Review production session and cookie settings once the final frontend and backend domains are confirmed, because fully cross-site cookie auth will require stricter cookie configuration than local development.
+- Add email verification only if that requirement is introduced later, since this chunk intentionally keeps the MVP auth foundation focused on account access and password recovery.
+
+========================================
+2026-03-15 / SESSION
+Auth Documentation Files For Testing And Maintenance
+========================================
+
+1. What was added
+- Added `testing.txt` with a practical Postman walkthrough for Sanctum SPA cookie authentication, including CSRF setup, cookie handling, endpoint order, expected responses, and troubleshooting steps.
+- Added `auth_files_guide.txt` with a file-by-file explanation of the auth module and a change map showing where future auth-related updates should be made.
+
+2. What each part does
+- `testing.txt` explains how to test the auth API outside the frontend, which headers and cookies are required, how to obtain the CSRF token, and how to complete the forgot-password and reset-password flow in local development.
+- `auth_files_guide.txt` documents the responsibility of each auth-related route, controller, request, service, resource, config file, model, and test so future changes can be made in the correct place.
+
+3. Important implementation decisions
+- The testing guide was written specifically for Sanctum SPA cookie mode because testing this flow in Postman is not the same as testing a bearer-token API.
+- The file guide focuses on responsibility boundaries so future work does not push validation into controllers or business logic into route files.
+- The documentation also includes a “where to change what” section so future additions such as profile updates, email verification, organization onboarding, and permissions can be implemented with less guesswork.
+
+4. Notes for frontend integration
+- The Postman guide mirrors the same cookie and CSRF flow the Next.js frontend must follow, so it can also be used as a debugging reference for frontend integration issues.
+- The file guide highlights that organization context and expanded auth payload data should be added through `AuthResponseService` and related domain files rather than by expanding controllers directly.
+
+5. Pending or next steps
+- Keep both documentation files updated whenever auth contracts or environment requirements change.
+- Add a real Postman collection export later if the developer wants importable requests instead of a text walkthrough.
+
+========================================
+2026-03-15 / SESSION
+Postman Automation For Sanctum CSRF Testing
+========================================
+
+1. What was added
+- Added `postman_auth_collection.json` as an importable Postman collection for the auth module.
+- Added `postman_local_environment.json` as an importable Postman environment for local Laravel backend testing.
+- Updated `testing.txt` so the primary workflow now uses the automated collection instead of manual CSRF token copying.
+- Updated `auth_files_guide.txt` to document the new Postman support files and their purpose.
+
+2. What each part does
+- The Postman collection includes a collection-level pre-request script that fetches `/sanctum/csrf-cookie` before write requests, reads the `XSRF-TOKEN` cookie from the Postman cookie jar, decodes it, and sends it as the `X-XSRF-TOKEN` header automatically.
+- The local environment file stores `base_url`, `frontend_origin`, and the decoded token variable used by the collection.
+- The testing guide now explains the import-and-run workflow so the developer can test auth endpoints with less manual setup and fewer CSRF mismatch errors.
+
+3. Important implementation decisions
+- The automation was added at the collection level so all mutating auth requests can share the same CSRF handling without duplicate request scripts.
+- The collection still keeps an explicit `Get CSRF Cookie` request because it is useful for debugging cookie jar behavior when Sanctum testing fails.
+- The automation uses the Postman cookie jar and decoded header approach because Sanctum SPA cookie mode requires both the cookies and the matching decoded `X-XSRF-TOKEN` header.
+
+4. Notes for frontend integration
+- The Postman automation mirrors the same CSRF bootstrap behavior the Next.js frontend must follow through `/sanctum/csrf-cookie`.
+- If auth fails in frontend integration later, the Postman collection can be used as a known-good reference flow to compare cookies, origin headers, and request order.
+
+5. Pending or next steps
+- Expand the Postman collection as new backend chunks add organization, social account, post, and scheduling endpoints.
+- If the hosting or auth strategy changes later, revisit the collection-level script and environment values to keep Postman testing aligned with runtime behavior.
+
+========================================
+2026-03-15 / SESSION
+Chunk 3 - Organization Foundation With Super-Admin Provisioning
+========================================
+
+1. What was added
+- Added migration files for `platform_role` on users, `organizations`, `organization_members`, and `organization_access_requests`.
+- Added model relationships so users, organizations, memberships, and organization access requests are connected cleanly through Eloquent.
+- Added user-facing endpoints for submitting a “become an organization” request and listing the current user’s own requests.
+- Added super-admin-only endpoints for listing organization access requests and creating organizations from approved requests.
+- Added organization services, resources, and a mail notification for the approval flow.
+- Updated the auth response builder so `/api/auth/me` now reflects approved organization context and request status.
+- Added feature tests covering organization access request submission, super-admin provisioning, access restrictions, and auth payload updates.
+- Added `organization_files_guide.txt` to document the new migration files, models, services, routes, and future extension points.
+
+2. What each part does
+- The new user migration adds `platform_role` so the system can distinguish `super_admin` from regular users without mixing platform access with organization membership role.
+- The organizations migration stores the approved tenant record, including who created it.
+- The organization members migration stores organization-scoped roles such as `organization_admin` and keeps membership auditable.
+- The organization access requests migration tracks who asked for organization access, the request details they submitted, the review status, who reviewed it, and which organization was created from it.
+- `OrganizationAccessRequestService` handles user-side submission and prevents multiple pending requests from the same user.
+- `OrganizationProvisioningService` is the admin-side workflow that creates the organization, creates the requester’s `organization_admin` membership, approves the request, and sends the approval notification.
+- The new admin routes are protected by the `access-super-admin` gate so normal users cannot provision organizations directly.
+- `AuthResponseService` now returns both the current organization context and the latest organization request status so the frontend can show “pending review” or “organization active” states without guessing.
+
+3. Important implementation decisions
+- Organization creation was intentionally moved away from self-service onboarding to match the product requirement that only super admins can create organizations.
+- A dedicated `organization_access_requests` table was introduced instead of storing request text on the user record so the review process remains auditable and extendable.
+- Platform role was separated from organization membership role because `super_admin` is a global platform concern, while `organization_admin` is organization-scoped.
+- The first organization member is created as `organization_admin` by the provisioning service so the organization has an owner-level member immediately after approval.
+- Approval uses a notification class rather than embedding mail logic in the service so notification behavior can be expanded later without rewriting the provisioning flow.
+
+4. Notes for frontend integration
+- Normal authenticated users should use `POST /api/organization-access-requests` for the “become an organization” action.
+- Users can check their own submitted requests with `GET /api/organization-access-requests/me`.
+- Super admins can review requests with `GET /api/admin/organization-access-requests`.
+- Super admins create organizations with `POST /api/admin/organizations` by passing `organization_access_request_id`, `name`, and optional `slug` or `review_notes`.
+- `/api/auth/me` now returns `data.organization` when the user has an active organization membership and `data.onboarding.organization_request_status` when a request exists.
+- The frontend should treat organization onboarding as request-based now, not self-created organization setup.
+
+5. Pending or next steps
+- Add an explicit rejection endpoint and response flow for organization access requests if support review needs a visible decline state.
+- Add organization member management and organization-scoped authorization in the next chunk.
+- Decide whether approval notifications should also be stored in a database-backed notifications table later, in addition to email.
+
+========================================
+2026-03-15 / SESSION
+Frontend Sanctum Integration And Final Redirect Adjustment
+========================================
+
+1. What was added
+- Connected the Next.js frontend auth flow to the Laravel backend routes using Sanctum SPA cookie authentication.
+- Added frontend session bootstrap, logout flow, current-user fetch, and organization access request dashboard form.
+- Updated the frontend register flow so successful signup now redirects to `/dashboard` instead of directly forcing `/dashboard/organization`.
+- Updated backend and frontend testing documentation to reflect the final working localhost-based setup and the resolved integration problems.
+
+2. What each part does
+- The frontend API client now handles credentialed Laravel requests, CSRF bootstrap through `/sanctum/csrf-cookie`, and XSRF header support required by Sanctum.
+- The frontend auth bootstrap checks `/api/auth/me` so auth pages can redirect logged-in users away and dashboard pages can redirect unauthenticated users back to login.
+- The organization dashboard page now lets a logged-in user request organization access instead of implying self-service organization creation.
+- The updated testing documentation now explains the stable browser and Postman testing flow and the exact environment values that must match.
+
+3. Important implementation decisions
+- Frontend and backend local integration were standardized on `localhost` because mixing `localhost` and `127.0.0.1` caused CSRF and cookie failures in browser testing.
+- Axios was updated to use `withXSRFToken: true` because Sanctum SPA requests need the XSRF header in addition to cookies.
+- Manually forcing browser-origin headers from Axios was removed because it created fragile request behavior and browser-side network failures.
+- Signup now lands on the main dashboard because organization access is optional and user initiated through the sidebar, not a forced next-step redirect.
+
+4. Notes for frontend integration
+- Final expected browser flow is register/login -> `/dashboard` -> user chooses `Organization` from the sidebar if they want organization access.
+- The frontend organization page should be treated as the “Become an organization” action entry point.
+- Browser testing should use `http://localhost:3000` for frontend and `http://localhost:8000` for backend consistently.
+
+5. Pending or next steps
+- Add super-admin frontend review screens for organization request approval.
+- Add richer dashboard UX for pending vs approved organization status and role-aware navigation.
