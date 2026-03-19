@@ -15,6 +15,8 @@ use App\Http\Controllers\Profile\DeleteAccountController;
 use App\Http\Controllers\Profile\UpdateAvatarController;
 use App\Http\Controllers\Profile\UpdatePasswordController;
 use App\Http\Controllers\Profile\UpdateProfileController;
+use App\Http\Controllers\Settings\ShowUserSettingsController;
+use App\Http\Controllers\Settings\UpdateUserSettingsController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -61,6 +63,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('profile', UpdateProfileController::class);
     Route::post('profile/avatar', UpdateAvatarController::class);
     Route::patch('profile/password', UpdatePasswordController::class);
+    Route::get('settings', ShowUserSettingsController::class);
+    Route::patch('settings', UpdateUserSettingsController::class);
 
     Route::prefix('organization-access-requests')->group(function () {
         Route::post('/', StoreOrganizationAccessRequestController::class);

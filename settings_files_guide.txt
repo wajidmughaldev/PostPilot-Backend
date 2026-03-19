@@ -1,0 +1,66 @@
+Settings Files Guide
+====================
+
+Purpose
+-------
+This module stores user-level preferences outside the `users` table so identity data and UI preferences remain separated. The settings popup can now save General, Notifications, and Personalization choices through real API endpoints.
+
+Database
+--------
+- `database/migrations/2026_03_19_120000_create_user_settings_table.php`
+  Creates the `user_settings` table with one row per user. The table stores theme preference, language, timezone, and notification/data-sharing toggles. `user_id` is unique and cascades on delete so settings are removed automatically when the user account is deleted.
+
+Models
+------
+- `app/Models/UserSetting.php`
+  Represents the persisted settings row and casts the boolean flags properly.
+
+- `app/Models/User.php`
+  Adds the `settings()` has-one relation so controllers and services can load or create the user's settings cleanly.
+
+Requests
+--------
+- `app/Http/Requests/Settings/UpdateUserSettingsRequest.php`
+  Validates the allowed theme, language, and timezone values and ensures all toggles arrive as booleans.
+
+Resources
+---------
+- `app/Http/Resources/UserSettingResource.php`
+  Formats the stored settings into a stable frontend payload under the `settings` key.
+
+Services
+--------
+- `app/Services/Settings/UserSettingsService.php`
+  Contains the settings business logic. It creates a default settings row on first access and updates the existing row on save.
+
+Controllers
+-----------
+- `app/Http/Controllers/Settings/ShowUserSettingsController.php`
+  Returns the authenticated user's settings. If the user has never saved settings before, this controller still returns a complete default settings payload.
+
+- `app/Http/Controllers/Settings/UpdateUserSettingsController.php`
+  Saves the posted settings payload and returns the refreshed settings data.
+
+Routes
+------
+- `GET /api/settings`
+  Fetches the current authenticated user's settings.
+
+- `PATCH /api/settings`
+  Persists the current authenticated user's General, Notifications, and Personalization preferences.
+
+Frontend Integration Notes
+--------------------------
+- The active popup component is:
+  `E:\PostPilot-Frontend\components\features\settings\user-settings-screen.tsx`
+- The popup now uses:
+  `E:\PostPilot-Frontend\lib\api\settings.ts`
+- Shared types are:
+  `E:\PostPilot-Frontend\types\settings.ts`
+- The same existing popup UI is preserved. The General, Notifications, and Personalization tabs now save real backend data instead of only showing demo toasts.
+
+Future Extension Points
+-----------------------
+- Add more languages or timezones by expanding the validation rules and the frontend option lists together.
+- If notification channels become more detailed later, add new columns to `user_settings` instead of overloading `users`.
+- If the product later needs per-organization preferences too, keep them in a separate organization settings table instead of mixing them into this user settings table.

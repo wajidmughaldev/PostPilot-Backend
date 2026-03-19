@@ -524,3 +524,39 @@ Profile Settings Chunk C - Delete Personal Account
 5. Pending or next steps
 - Notification and personalization tabs are still placeholders if you want to continue within settings.
 - Otherwise the next larger product module can start now.
+
+========================================
+2026-03-19 / SESSION
+Settings Chunk D - General, Notifications, and Personalization Persistence
+========================================
+
+1. What was added
+- Added a normalized `user_settings` table so user preferences are stored separately from identity fields on `users`.
+- Added authenticated settings endpoints to fetch and update saved preferences.
+- Reconnected the existing settings popup UI so the General, Notifications, and Personalization tabs now save real backend data instead of demo-only local state.
+
+2. What each part does
+- `create_user_settings_table` creates one settings row per user with theme, language, timezone, notification toggles, and data-sharing preference.
+- `UserSetting` stores the preference record and casts toggle fields as booleans.
+- `User::settings()` links a user to the single settings row.
+- `UpdateUserSettingsRequest` validates the allowed theme, language, and timezone values and enforces boolean input for toggle fields.
+- `UserSettingsService` creates default settings on first access and persists updates on save.
+- `ShowUserSettingsController` returns the authenticated user's settings, creating a default row if none exists yet.
+- `UpdateUserSettingsController` saves the posted preferences and returns the refreshed settings payload.
+
+3. Important implementation decisions
+- Settings were kept out of the `users` table so identity fields and UI preferences remain separated and easier to extend later.
+- The backend stores normalized internal values such as `system`, `en-US`, and `UTC`; the frontend is responsible for displaying human-friendly labels.
+- The current popup UI was preserved rather than replaced, so the user experience stays consistent while the data flow becomes real.
+
+4. Notes for frontend integration
+- Active settings endpoints are:
+- `GET /api/settings`
+- `PATCH /api/settings`
+- The frontend popup now loads a persisted settings draft when opened and saves the same draft when the active tab is General, Notifications, or Personalization.
+- Theme, language, timezone, email notifications, browser notifications, marketing updates, and data sharing now persist between sessions for the authenticated user.
+
+5. Pending or next steps
+- If needed, hook saved theme preference into the app-wide theme system instead of only storing it.
+- Notification channels can be expanded later without changing the identity/auth tables.
+- The next larger product module can start after settings if you want to move on from account management.

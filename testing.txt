@@ -552,3 +552,47 @@ Browser verification flow:
 Verification commands used for this chunk:
 - `php artisan test --filter=DeleteAccountTest`
 - `php artisan test --filter=Profile`
+
+========================================
+2026-03-19 Settings Persistence Test Notes
+========================================
+
+Migration needed:
+- `php artisan migrate`
+
+Current backend endpoints in scope:
+- `GET /api/settings`
+- `PATCH /api/settings`
+
+Request body for `PATCH /api/settings`:
+
+```json
+{
+  "theme_preference": "dark",
+  "interface_language": "fr",
+  "timezone": "Europe/Berlin",
+  "email_notifications": true,
+  "browser_notifications": false,
+  "marketing_updates": true,
+  "data_sharing_enabled": true
+}
+```
+
+Browser verification flow:
+- log in
+- open the settings popup
+- go to `General`
+- change Theme, Language, and Data Controls
+- click `Save Changes`
+- reopen settings and confirm the new values are still selected
+- go to `Notifications`
+- change the notification toggles
+- save and reopen
+- go to `Personalization`
+- change Appearance, Interface Language, and Timezone
+- save and reopen
+- confirm the saved values persist across popup opens and after re-login
+
+Verification commands used for this chunk:
+- `php artisan test --filter=UserSettingsTest`
+- `php artisan route:list --path=settings`
