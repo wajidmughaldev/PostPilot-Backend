@@ -149,3 +149,60 @@ Current testing coverage now includes:
 - super-admin approval
 - super-admin rejection
 - admin access restrictions
+
+==================================
+2026-03-19 Members and Invites
+==================================
+
+New backend files for this chunk:
+
+- `database/migrations/2026_03_19_140000_create_organization_invites_table.php`
+- `app/Models/OrganizationInvite.php`
+- `app/Http/Resources/OrganizationMemberResource.php`
+- `app/Http/Resources/OrganizationInviteResource.php`
+- `app/Http/Requests/Organization/StoreOrganizationInviteRequest.php`
+- `app/Http/Requests/Organization/UpdateOrganizationMemberRequest.php`
+- `app/Http/Requests/Organization/AcceptOrganizationInviteRequest.php`
+- `app/Services/Organization/OrganizationMemberService.php`
+- `app/Http/Controllers/Organization/ListOrganizationTeamController.php`
+- `app/Http/Controllers/Organization/StoreOrganizationInviteController.php`
+- `app/Http/Controllers/Organization/UpdateOrganizationMemberController.php`
+- `app/Http/Controllers/Organization/RemoveOrganizationMemberController.php`
+- `app/Http/Controllers/Organization/RevokeOrganizationInviteController.php`
+- `app/Http/Controllers/Organization/PreviewOrganizationInviteController.php`
+- `app/Http/Controllers/Organization/AcceptOrganizationInviteController.php`
+
+What these files do:
+
+- `organization_invites` stores pending organization membership invitations with token-based acceptance.
+- `OrganizationMemberService` is the main business layer for team listing, invite creation, role changes, removals, revocation, preview, and acceptance.
+- `OrganizationMemberResource` gives the frontend a stable row shape for active team members.
+- `OrganizationInviteResource` gives the frontend a stable row shape for pending invites, including a shareable invite URL.
+- `StoreOrganizationInviteRequest` validates the invite email and restricts allowed invite roles to `manager` and `editor`.
+- `UpdateOrganizationMemberRequest` validates allowed role changes and intentionally excludes owner transfer.
+- `AcceptOrganizationInviteRequest` validates name and password for invite acceptance.
+
+Live endpoints added:
+
+- `GET /api/organizations/current/team`
+- `POST /api/organizations/current/invites`
+- `PATCH /api/organizations/current/members/{id}`
+- `DELETE /api/organizations/current/members/{id}`
+- `DELETE /api/organizations/current/invites/{id}`
+- `GET /api/invites/{token}`
+- `POST /api/invites/{token}/accept`
+
+Important implementation notes:
+
+- Active members and pending invites are now separate concepts in the data model. Pending people remain in `organization_invites` until they accept.
+- Only organization owners can manage team composition in this chunk.
+- Invite acceptance returns the same auth payload shape used by login so the frontend can establish a session immediately.
+
+Current testing coverage added for this chunk:
+- current team listing
+- owner invite creation
+- non-owner invite rejection
+- member role update
+- member removal
+- invite preview
+- invite acceptance by a new user

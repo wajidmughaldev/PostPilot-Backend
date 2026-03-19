@@ -68,6 +68,11 @@ class User extends Authenticatable
         return $this->hasMany(OrganizationAccessRequest::class, 'reviewed_by');
     }
 
+    public function organizationInvites(): HasMany
+    {
+        return $this->hasMany(OrganizationInvite::class, 'invited_by');
+    }
+
     public function settings(): HasOne
     {
         return $this->hasOne(UserSetting::class);

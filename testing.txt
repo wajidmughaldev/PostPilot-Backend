@@ -659,3 +659,70 @@ Verification commands used for this chunk:
 - `php artisan test --filter=OrganizationProvisioningTest`
 - `php artisan route:list --path=organization`
 - `php artisan test`
+
+========================================
+2026-03-19 Organization Members and Invites Test Notes
+========================================
+
+Migration needed:
+- `php artisan migrate`
+
+Current backend endpoints in scope:
+- `GET /api/organizations/current/team`
+- `POST /api/organizations/current/invites`
+- `PATCH /api/organizations/current/members/{id}`
+- `DELETE /api/organizations/current/members/{id}`
+- `DELETE /api/organizations/current/invites/{id}`
+- `GET /api/invites/{token}`
+- `POST /api/invites/{token}/accept`
+
+Invite request body:
+
+```json
+{
+  "email": "member@example.com",
+  "role": "editor"
+}
+```
+
+Member role update request body:
+
+```json
+{
+  "role": "manager"
+}
+```
+
+Invite accept request body:
+
+```json
+{
+  "name": "New Team Member",
+  "password": "Password123",
+  "password_confirmation": "Password123"
+}
+```
+
+Browser verification flow:
+- log in as an approved organization owner
+- open `/organization`
+- confirm the team section loads active members and pending invites
+- invite a member with email and role
+- copy the generated invite link
+- open the invite link in a new browser session or private window
+- accept the invite
+- confirm the invited user is logged in and redirected into the dashboard
+- return to the owner session
+- confirm the pending invite disappears and the new member appears in the team list
+- change that member role from editor to manager
+- remove the member and confirm they disappear from the active members list
+
+Role and permission checks:
+- only organization owner can create invites
+- only organization owner can update member roles
+- only organization owner can remove members
+- non-owners should receive `403 Forbidden`
+
+Verification commands used for this chunk:
+- `php artisan test --filter=OrganizationMemberManagementTest`
+- `php artisan test --filter=Organization`

@@ -609,3 +609,48 @@ Organization Chunk A - Frontend Contract Foundation
 - Hook the organization screen and admin organization review screens through browser testing against the real backend instead of mock fallback.
 - Add organization members and invite flow next.
 - Add real organization-scoped accounts and posts only after the membership layer is ready.
+
+========================================
+2026-03-19 / SESSION
+Organization Chunk B - Members and Invites
+========================================
+
+1. What was added
+- Added a normalized `organization_invites` table to store pending invite links separately from active `organization_members`.
+- Added organization team endpoints to list members and pending invites for the current organization.
+- Added owner-only endpoints to create invites, update member roles, remove members, and revoke pending invites.
+- Added public invite preview and invite acceptance endpoints so invited users can join an organization from a token link.
+- Extended the organization dashboard screen so approved organizations now show the live team panel and owner invite controls.
+
+2. What each part does
+- `create_organization_invites_table` stores the invited email, role, token, inviter, acceptance state, and expiry without mixing pending invites into the active membership table.
+- `OrganizationInvite` models invite lifecycle state and links each invite to the organization and inviter.
+- `OrganizationMemberService` centralizes current-team listing, owner authorization checks, invite creation, role updates, removals, invite revocation, preview, and acceptance.
+- `OrganizationMemberResource` formats active member rows for the frontend team panel.
+- `OrganizationInviteResource` formats pending invite rows and exposes a ready-to-share frontend invite URL.
+- `AcceptOrganizationInviteController` accepts an invite, creates the user when needed, logs them in, and returns the same auth payload shape used elsewhere in the app.
+- `create-organization-form.tsx` now renders the live member list and pending invite list once an organization is approved, instead of showing only a static placeholder summary.
+
+3. Important implementation decisions
+- Pending invites were kept in their own table instead of overloading `organization_members` with pre-acceptance records. This keeps membership state cleaner and easier to extend later with reminders or expirations.
+- Invite acceptance supports both new users and already-registered users. If the invited email already exists, the backend requires that user's current password before attaching them to the organization.
+- Owner-only authorization is enforced in the service layer for invites, role changes, and member removal because these actions depend on the caller's current active membership, not only on a global platform role.
+- Invite acceptance logs the user in immediately and returns the standard auth payload so the frontend can move directly into the authenticated organization flow.
+
+4. Notes for frontend integration
+- New authenticated team routes:
+- `GET /api/organizations/current/team`
+- `POST /api/organizations/current/invites`
+- `PATCH /api/organizations/current/members/{id}`
+- `DELETE /api/organizations/current/members/{id}`
+- `DELETE /api/organizations/current/invites/{id}`
+- New public invite routes:
+- `GET /api/invites/{token}`
+- `POST /api/invites/{token}/accept`
+- The approved organization page now shows active members and pending invites from the live backend.
+- The owner can invite `manager` and `editor` roles only. Ownership transfer is intentionally not part of this chunk.
+
+5. Pending or next steps
+- Add organization owner delete flow later, including a decision about what happens to members and organization-scoped data on deletion.
+- Connect real organization-scoped account management after membership is stable.
+- Add organization-scoped post visibility and actions once the posts backend is introduced.

@@ -12,9 +12,16 @@ use App\Http\Controllers\Admin\ListOrganizationAccessRequestsController;
 use App\Http\Controllers\Admin\ListOrganizationsController;
 use App\Http\Controllers\Admin\RejectOrganizationRequestController;
 use App\Http\Controllers\Organization\CurrentOrganizationController;
+use App\Http\Controllers\Organization\AcceptOrganizationInviteController;
 use App\Http\Controllers\Organization\LatestOrganizationAccessRequestController;
+use App\Http\Controllers\Organization\ListOrganizationTeamController;
 use App\Http\Controllers\Organization\MyOrganizationAccessRequestsController;
+use App\Http\Controllers\Organization\PreviewOrganizationInviteController;
+use App\Http\Controllers\Organization\RemoveOrganizationMemberController;
+use App\Http\Controllers\Organization\RevokeOrganizationInviteController;
 use App\Http\Controllers\Organization\StoreOrganizationAccessRequestController;
+use App\Http\Controllers\Organization\StoreOrganizationInviteController;
+use App\Http\Controllers\Organization\UpdateOrganizationMemberController;
 use App\Http\Controllers\Organization\WithdrawOrganizationAccessRequestController;
 use App\Http\Controllers\Profile\ShowProfileController;
 use App\Http\Controllers\Profile\DeleteAccountController;
@@ -42,6 +49,8 @@ Route::get('me', MeController::class);
 Route::post('logout', LogoutController::class)->middleware('auth:sanctum');
 Route::post('forgot-password', ForgotPasswordController::class)->middleware('throttle:6,1');
 Route::post('reset-password', ResetPasswordController::class)->middleware('throttle:6,1');
+Route::get('invites/{token}', PreviewOrganizationInviteController::class)->middleware('throttle:20,1');
+Route::post('invites/{token}/accept', AcceptOrganizationInviteController::class)->middleware('throttle:10,1');
 
 Route::prefix('auth')->group(function () {
     Route::post('register', RegisterController::class)->middleware('throttle:6,1');
@@ -73,6 +82,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('settings', UpdateUserSettingsController::class);
 
     Route::get('organizations/current', CurrentOrganizationController::class);
+    Route::get('organizations/current/team', ListOrganizationTeamController::class);
+    Route::post('organizations/current/invites', StoreOrganizationInviteController::class);
+    Route::patch('organizations/current/members/{organizationMember}', UpdateOrganizationMemberController::class);
+    Route::delete('organizations/current/members/{organizationMember}', RemoveOrganizationMemberController::class);
+    Route::delete('organizations/current/invites/{organizationInvite}', RevokeOrganizationInviteController::class);
 
     Route::prefix('organization-requests')->group(function () {
         Route::post('/', StoreOrganizationAccessRequestController::class);
