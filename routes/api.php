@@ -27,12 +27,14 @@ Route::post('register', RegisterController::class)->middleware('throttle:6,1');
 Route::post('login', LoginController::class)->middleware('throttle:10,1');
 Route::get('me', MeController::class);
 Route::post('logout', LogoutController::class)->middleware('auth:sanctum');
+Route::post('forgot-password', ForgotPasswordController::class)->middleware('throttle:6,1');
+Route::post('reset-password', ResetPasswordController::class)->middleware('throttle:6,1');
 
 Route::prefix('auth')->group(function () {
     Route::post('register', RegisterController::class)->middleware('throttle:6,1');
     Route::post('login', LoginController::class)->middleware('throttle:10,1');
-    Route::post('forgot-password', ForgotPasswordController::class);
-    Route::post('reset-password', ResetPasswordController::class);
+    Route::post('forgot-password', ForgotPasswordController::class)->middleware('throttle:6,1');
+    Route::post('reset-password', ResetPasswordController::class)->middleware('throttle:6,1');
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('logout', LogoutController::class);

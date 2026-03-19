@@ -237,8 +237,8 @@ class AuthEndpointsTest extends TestCase
             'email' => 'jane@example.com',
         ]);
 
-        $response = $this->postJson('/api/auth/forgot-password', [
-            'email' => 'jane@example.com',
+        $response = $this->postJson('/api/forgot-password', [
+            'email' => '  JANE@example.com ',
         ]);
 
         $response
@@ -256,7 +256,7 @@ class AuthEndpointsTest extends TestCase
     {
         Notification::fake();
 
-        $response = $this->postJson('/api/auth/forgot-password', [
+        $response = $this->postJson('/api/forgot-password', [
             'email' => 'missing@example.com',
         ]);
 
@@ -280,9 +280,9 @@ class AuthEndpointsTest extends TestCase
 
         $token = Password::broker()->createToken($user);
 
-        $response = $this->postJson('/api/auth/reset-password', [
+        $response = $this->postJson('/api/reset-password', [
             'token' => $token,
-            'email' => 'jane@example.com',
+            'email' => '  JANE@example.com ',
             'password' => 'NewPass123',
             'password_confirmation' => 'NewPass123',
         ]);
@@ -297,7 +297,7 @@ class AuthEndpointsTest extends TestCase
 
         $this->assertTrue(Hash::check('NewPass123', $user->fresh()->password));
 
-        $this->postJson('/api/auth/login', [
+        $this->postJson('/api/login', [
             'email' => 'jane@example.com',
             'password' => 'NewPass123',
         ])->assertOk();

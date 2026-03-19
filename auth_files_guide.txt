@@ -412,3 +412,27 @@ Where to change logout next
   - `E:\PostPilot-Frontend\lib\api\auth.ts`
 - Change frontend sign-out UX:
   - `E:\PostPilot-Frontend\components\features\settings\user-settings-screen.tsx`
+
+Forgot-password / reset-password restart note
+---------------------------------------------
+
+For the backend restart password-recovery chunk on 2026-03-19:
+- active frontend forgot-password route is `POST /api/forgot-password`
+- active frontend reset-password route is `POST /api/reset-password`
+- reset links are still generated through Laravel's password broker and point to the frontend reset page using `FRONTEND_URL`
+- the reset email is sent only when the submitted email matches a registered account, but the API response remains generic
+
+Where to change password recovery next
+--------------------------------------
+- Change forgot-password validation or normalization:
+  - `app/Http/Requests/Auth/ForgotPasswordRequest.php`
+- Change reset-password validation or normalization:
+  - `app/Http/Requests/Auth/ResetPasswordRequest.php`
+- Change reset-link dispatch behavior:
+  - `app/Services/Auth/ForgotPasswordService.php`
+- Change password reset write logic:
+  - `app/Services/Auth/ResetPasswordService.php`
+- Change frontend reset-link destination:
+  - `app/Providers/AppServiceProvider.php`
+- Change route exposure:
+  - `routes/api.php`

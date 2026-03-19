@@ -347,3 +347,100 @@ Browser verification flow:
 Verification commands used for this chunk:
 - `php artisan test --filter=AuthEndpointsTest`
 - `php artisan route:list --path=logout`
+
+========================================
+2026-03-19 Forgot Password and Reset Password Restart Test Notes
+========================================
+
+Current backend endpoints in scope:
+- `POST /api/forgot-password`
+- `POST /api/reset-password`
+
+Forgot-password request:
+
+```json
+{
+  "email": "jane@example.com"
+}
+```
+
+Expected forgot-password response:
+
+```json
+{
+  "success": true,
+  "message": "If the account exists, a password reset link has been sent to the email address provided.",
+  "data": {}
+}
+```
+
+Important behavior:
+- if `jane@example.com` is a registered account, Laravel sends the reset email to that registered email
+- if the email is not registered, the same success message is still returned
+
+Reset-password request:
+
+```json
+{
+  "token": "reset-token-from-email",
+  "email": "jane@example.com",
+  "password": "NewPass123",
+  "password_confirmation": "NewPass123"
+}
+```
+
+Expected reset-password response:
+
+```json
+{
+  "success": true,
+  "message": "Password reset completed successfully.",
+  "data": {}
+}
+```
+
+Browser verification flow:
+- register a user with a real email address configured for local mail testing
+- submit forgot-password from `/forgot-password`
+- open the reset email in Mailpit or your configured mail inbox
+- confirm the link targets the frontend `/reset-password` page
+- submit the reset form with the same registered email and a new password
+- log in with the new password and confirm the old password no longer works
+
+Verification commands used for this chunk:
+- `php artisan test --filter=AuthEndpointsTest`
+- `php artisan route:list --path=forgot-password`
+- `php artisan route:list --path=reset-password`
+
+========================================
+2026-03-19 Auth Stability Fix Notes
+========================================
+
+Same browser tab login-switch test:
+- log in as user A
+- open dashboard
+- sign out
+- log in as user B in the same browser tab
+- confirm dashboard opens without needing a manual refresh
+- confirm protected pages do not show stale unauthorized state from the previous user
+
+Local reset-email test:
+- make sure Mailpit is running on `127.0.0.1:1025`
+- confirm backend `.env` has:
+- `MAIL_MAILER=smtp`
+- `MAIL_HOST=127.0.0.1`
+- `MAIL_PORT=1025`
+- run `php artisan config:clear`
+- submit forgot-password for a registered email
+- open Mailpit and confirm the reset email appears there
+
+If Mailpit is not running:
+- the frontend will now receive:
+- `Password reset email service is currently unavailable. Please try again later.`
+
+Frontend UX notes added on 2026-03-19:
+- login now shows a Sonner toast for invalid credentials and throttling
+- forgot-password now shows a Sonner toast for reset email success and local email transport failure
+- reset-password now shows a Sonner toast for missing token, success, and failure
+- local Mailpit help page is available at:
+- `http://localhost:3000/email-testing`

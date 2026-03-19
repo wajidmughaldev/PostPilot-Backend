@@ -319,3 +319,98 @@ Backend Restart Chunk 3 - Logout
 - Move forgot password and reset password to root routes for a fully consistent auth contract.
 - Add friendlier frontend Sonner messages for throttling and invalid credentials if needed.
 - Then move to the next product module once the base auth cycle is fully stable.
+
+========================================
+2026-03-19 / SESSION
+Backend Restart Chunk 4 - Forgot Password and Reset Password
+========================================
+
+1. What was added
+- Added root `POST /api/forgot-password` and `POST /api/reset-password` so the restarted frontend can use the full auth flow on root routes.
+- Added input normalization and human-friendly validation messages for forgot-password and reset-password requests.
+- Updated auth feature tests to verify forgot-password and reset-password through the root routes.
+
+2. What each part does
+- `ForgotPasswordRequest` now trims and lowercases the email before validation and returns clear validation messages for missing or invalid email input.
+- `ResetPasswordRequest` now trims and lowercases the email before validation and returns clearer messages for missing token, invalid email, missing password, and password confirmation mismatch.
+- `ForgotPasswordController` still delegates to `ForgotPasswordService`, which sends the reset link through Laravel's password broker to the registered email when that account exists.
+- `ResetPasswordController` still delegates to `ResetPasswordService`, which resets the password for the matching account when the token and email are valid.
+- `AppServiceProvider` continues to build reset links pointing at the frontend reset page using `FRONTEND_URL`, so the email flow lands back in the current frontend.
+
+3. Important implementation decisions
+- The forgot-password endpoint keeps returning the same success message whether the email exists or not, which avoids leaking which emails are registered.
+- Email normalization was added here as well so register, login, forgot-password, and reset-password all treat casing and surrounding spaces consistently.
+- Root routes were added without removing the older `/api/auth/*` aliases, so the restarted frontend can move forward while legacy compatibility remains available.
+
+4. Notes for frontend integration
+- Active forgot-password endpoint is `POST /api/forgot-password`.
+- Active reset-password endpoint is `POST /api/reset-password`.
+- When a registered email is submitted to forgot-password, Laravel sends the reset email to that registered address.
+- The reset link points to:
+- `http://localhost:3000/reset-password?token=...&email=registered@example.com`
+- Reset-password succeeds only for the account matching the submitted email and valid reset token.
+
+5. Pending or next steps
+- Add more polished frontend Sonner handling for `429` throttling and backend validation details if desired.
+- The base auth cycle is now in place; the next practical module can move to organizations or any other product feature.
+
+========================================
+2026-03-19 / SESSION
+Auth Stability Fixes - Same-Tab Account Switching and Local Mail
+========================================
+
+1. What was added
+- Hardened the frontend auth bootstrap, login, and logout flow so switching from one user to another in the same browser tab clears stale auth state correctly.
+- Updated local backend mail configuration to use `127.0.0.1:1025` instead of the Docker-style `mailpit` hostname.
+- Added a friendlier backend error message when the password reset mail transport is unavailable.
+
+2. What each part does
+- The frontend auth store now starts in bootstrapping mode so protected dashboard screens do not race against the initial `/api/me` check.
+- The current-user React Query hook now refetches on mount and reconnect without relying on stale cached auth data.
+- The login form now clears old query cache, logs the user in, then confirms the active backend session through `/api/me` before continuing.
+- The sign-out flow now treats expired-session `401` and `419` responses as a valid local sign-out case, clears all cached queries, closes the settings UI, and forces navigation back to `/login`.
+- The backend forgot-password service now returns a controlled message when SMTP is unavailable instead of leaking the raw transport exception into the frontend.
+
+3. Important implementation decisions
+- Same-tab account switching was fixed in the frontend because the issue was stale client auth state and cached current-user data surviving across logout and re-login.
+- Local mail host was changed to `127.0.0.1` because `mailpit` is only resolvable when a local container/network alias exists; on a normal Windows local setup it should point to the local machine.
+- SMTP errors are still real backend failures, but they are now reported in a frontend-safe message instead of a low-level socket error string.
+
+4. Notes for frontend integration
+- After logout, the app now clears the full React Query cache before redirecting to `/login`.
+- After login, the frontend now relies on a confirmed `/api/me` response, which makes second-user login in the same browser tab more stable.
+- For local password reset testing, Mailpit should be running on `127.0.0.1:1025` if you want actual reset emails to be viewable in a local inbox.
+
+5. Pending or next steps
+- If you do not want to run Mailpit locally, switch to `MAIL_MAILER=log` for development-only logging instead of real email transport.
+- The auth base is now stable enough to move to the next module.
+
+========================================
+2026-03-19 / SESSION
+Auth UX Polish - Sonner Messages and Mailpit Guide
+========================================
+
+1. What was added
+- Added frontend-friendly auth error normalization for throttling, invalid credentials, and local password-reset email transport failures.
+- Added direct Sonner notifications to login, forgot-password, and reset-password flows.
+- Added a small frontend Mailpit guide page for local password-reset email testing.
+
+2. What each part does
+- `lib/auth/auth-error-message.ts` now centralizes common auth-error message cleanup so forms can show cleaner notifications without duplicating string checks.
+- The login form now shows Sonner feedback for invalid credentials and throttling in addition to the inline form message.
+- The forgot-password form now shows success and failure Sonner notifications, including a clearer message when Mailpit or SMTP is unavailable locally.
+- The reset-password form now shows Sonner feedback for missing reset token, reset success, throttling, and reset failure cases.
+- The new frontend page `/email-testing` explains how to run Mailpit locally and how password reset emails behave during development.
+
+3. Important implementation decisions
+- Sonner notifications were added on top of the existing inline messages instead of replacing them, so users get immediate feedback while the form still preserves error context after the toast disappears.
+- The Mailpit guide was added to the frontend because the reset-email issue is a developer testing problem, not a backend business-rule problem.
+- Error normalization was kept small and explicit rather than building a large frontend error-mapping system too early.
+
+4. Notes for frontend integration
+- The forgot-password screen now links to `/email-testing` for local email setup help.
+- Local throttling errors now show as `Too many attempts. Please wait a minute and try again.`
+- Local reset-mail transport failures now show a message that explicitly tells the developer to make sure Mailpit is running on `127.0.0.1:1025`.
+
+5. Pending or next steps
+- The auth base is complete enough to stop here and move to the next backend module.
