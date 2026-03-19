@@ -654,3 +654,65 @@ Organization Chunk B - Members and Invites
 - Add organization owner delete flow later, including a decision about what happens to members and organization-scoped data on deletion.
 - Connect real organization-scoped account management after membership is stable.
 - Add organization-scoped post visibility and actions once the posts backend is introduced.
+
+========================================
+2026-03-20 / SESSION
+Posts Chunk A - Role-Aware Personal and Organization Post Foundation
+========================================
+
+1. What was added
+- Added the normalized `posts` table for storing personal and organization-scoped posts in one backend model.
+- Added personal post endpoints under `/api/me/posts`.
+- Added organization post endpoints under `/api/organizations/current/posts`.
+- Added post validation, resource formatting, service-layer business logic, and feature tests.
+
+2. What each part does
+- The posts migration stores the creator, optional organization scope, publishing state, scheduling data, audience fields, and connected account metadata used by the frontend wizard.
+- `Post` is the central Eloquent model for post records and casts the JSON-backed arrays the frontend expects back into usable PHP arrays.
+- `StorePostRequest` and `UpdatePostRequest` validate the payload used by the frontend create and edit post composer so request structure stays stable and controllers remain thin.
+- `PostResource` maps database columns into the exact camelCase response shape used by the frontend posts list and composer screens.
+- `PostService` handles all business logic for list, show, create, update, save draft, and delete, while also enforcing role-aware visibility rules.
+- The post controllers only orchestrate validated requests into the service layer and return consistent API success responses.
+- `PostEndpointsTest` verifies the role-aware behavior and personal vs organization routing contract.
+
+3. Important implementation decisions
+- Posts are stored in one normalized table with an optional `organization_id` instead of splitting personal and organization posts into separate tables. This keeps the model scalable while still allowing strict scoping rules.
+- Role-aware access is enforced in `PostService`, where owners and managers can see organization-wide posts and editors are limited to their own organization posts by default.
+- The backend routes follow the frontend's existing context-aware request pattern:
+- personal mode uses `/api/me/posts`
+- organization mode uses `/api/organizations/current/posts`
+- Account labels and platforms are currently derived from the same known demo account ids already used by the frontend so the screens work immediately without waiting for real social account persistence.
+
+4. Notes for frontend integration
+- The frontend can now call the real backend post routes instead of relying on mock fallback when the backend is running and migrated.
+- Successful create, update, save-draft, and delete responses now match the frontend post hooks contract.
+- The posts list screen should now reflect real role-based access:
+- personal users only see their own personal posts
+- owners and managers see all organization posts
+- editors only see their own organization posts
+
+5. Pending or next steps
+- Replace temporary demo account metadata mapping with real connected social account data.
+- Add approval-ready post workflow for editor-created content if publishing must require manager or owner approval.
+- Extend the calendar and logs modules to read from real post data once those chunks begin.
+
+========================================
+2026-03-20 / SESSION
+Posts Chunk A1 - Posts Table Schema Sync For Older Databases
+========================================
+
+1. What was added
+- Added a repair migration to bring older existing `posts` tables up to the new role-aware post schema.
+
+2. What each part does
+- `2026_03_20_000002_sync_posts_table_schema.php` checks the existing `posts` table and adds any missing columns required by the current backend post service and frontend post composer.
+
+3. Important implementation decisions
+- The migration is additive and guarded with `Schema::hasColumn(...)` checks so it can be run safely on databases that already have some or all of the new post fields.
+- This avoids forcing a destructive table rebuild for developers who already had a legacy `posts` table in local MySQL.
+
+4. Notes for frontend integration
+- If the frontend tries to create or schedule a post and the backend throws a missing-column SQL error on `posts`, run `php artisan migrate` again after pulling this migration.
+
+5. Pending or next steps
+- Keep using additive schema sync migrations whenever earlier local tables drift from the current MVP backend contract.

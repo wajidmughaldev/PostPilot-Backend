@@ -28,6 +28,12 @@ use App\Http\Controllers\Profile\DeleteAccountController;
 use App\Http\Controllers\Profile\UpdateAvatarController;
 use App\Http\Controllers\Profile\UpdatePasswordController;
 use App\Http\Controllers\Profile\UpdateProfileController;
+use App\Http\Controllers\Post\DeletePostController;
+use App\Http\Controllers\Post\ListPostsController;
+use App\Http\Controllers\Post\SavePostDraftController;
+use App\Http\Controllers\Post\ShowPostController;
+use App\Http\Controllers\Post\StorePostController;
+use App\Http\Controllers\Post\UpdatePostController;
 use App\Http\Controllers\Settings\ShowUserSettingsController;
 use App\Http\Controllers\Settings\UpdateUserSettingsController;
 use Illuminate\Support\Facades\Route;
@@ -73,6 +79,15 @@ Route::prefix('posts')->group(function () {
 });
 
 Route::middleware('auth:sanctum')->group(function () {
+    Route::prefix('me')->group(function () {
+        Route::get('posts', fn (\Illuminate\Http\Request $request, \App\Services\Post\PostService $service) => app(ListPostsController::class)($request, $service, 'personal'));
+        Route::post('posts', fn (\App\Http\Requests\Post\StorePostRequest $request, \App\Services\Post\PostService $service) => app(StorePostController::class)($request, $service, 'personal'));
+        Route::get('posts/{post}', fn (\Illuminate\Http\Request $request, \App\Services\Post\PostService $service, string $post) => app(ShowPostController::class)($request, $service, 'personal', $post));
+        Route::patch('posts/{post}', fn (\App\Http\Requests\Post\UpdatePostRequest $request, \App\Services\Post\PostService $service, string $post) => app(UpdatePostController::class)($request, $service, 'personal', $post));
+        Route::post('posts/{post}/save-draft', fn (\Illuminate\Http\Request $request, \App\Services\Post\PostService $service, string $post) => app(SavePostDraftController::class)($request, $service, 'personal', $post));
+        Route::delete('posts/{post}', fn (\Illuminate\Http\Request $request, \App\Services\Post\PostService $service, string $post) => app(DeletePostController::class)($request, $service, 'personal', $post));
+    });
+
     Route::get('profile', ShowProfileController::class);
     Route::delete('profile', DeleteAccountController::class);
     Route::patch('profile', UpdateProfileController::class);
@@ -83,6 +98,12 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('organizations/current', CurrentOrganizationController::class);
     Route::get('organizations/current/team', ListOrganizationTeamController::class);
+    Route::get('organizations/current/posts', fn (\Illuminate\Http\Request $request, \App\Services\Post\PostService $service) => app(ListPostsController::class)($request, $service, 'organization'));
+    Route::post('organizations/current/posts', fn (\App\Http\Requests\Post\StorePostRequest $request, \App\Services\Post\PostService $service) => app(StorePostController::class)($request, $service, 'organization'));
+    Route::get('organizations/current/posts/{post}', fn (\Illuminate\Http\Request $request, \App\Services\Post\PostService $service, string $post) => app(ShowPostController::class)($request, $service, 'organization', $post));
+    Route::patch('organizations/current/posts/{post}', fn (\App\Http\Requests\Post\UpdatePostRequest $request, \App\Services\Post\PostService $service, string $post) => app(UpdatePostController::class)($request, $service, 'organization', $post));
+    Route::post('organizations/current/posts/{post}/save-draft', fn (\Illuminate\Http\Request $request, \App\Services\Post\PostService $service, string $post) => app(SavePostDraftController::class)($request, $service, 'organization', $post));
+    Route::delete('organizations/current/posts/{post}', fn (\Illuminate\Http\Request $request, \App\Services\Post\PostService $service, string $post) => app(DeletePostController::class)($request, $service, 'organization', $post));
     Route::post('organizations/current/invites', StoreOrganizationInviteController::class);
     Route::patch('organizations/current/members/{organizationMember}', UpdateOrganizationMemberController::class);
     Route::delete('organizations/current/members/{organizationMember}', RemoveOrganizationMemberController::class);

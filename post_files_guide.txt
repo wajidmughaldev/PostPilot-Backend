@@ -1,0 +1,158 @@
+Posts Backend File Guide
+========================
+
+This file explains the backend files added for the role-aware post foundation and what each one is responsible for.
+
+Main goal
+---------
+- Support personal posts through `/api/me/posts`
+- Support organization posts through `/api/organizations/current/posts`
+- Enforce role-aware visibility:
+  - owner can view and manage all organization posts
+  - manager can view and manage all organization posts
+  - editor can only view and manage their own organization posts by default
+
+Database files
+--------------
+
+`database/migrations/2026_03_20_000001_create_posts_table.php`
+- Creates the normalized `posts` table.
+- Stores:
+  - the creating user
+  - optional organization scope
+  - post content
+  - status and publish mode
+  - scheduling timestamps
+  - selected accounts and platform labels
+  - audience fields used by the frontend wizard
+- Keeps organization and user references indexed for scalable filtering later.
+
+Model
+-----
+
+`app/Models/Post.php`
+- Eloquent model for posts.
+- Casts JSON fields like platforms, account ids, labels, locations, and interests into arrays automatically.
+- Links posts back to:
+  - `user`
+  - `organization`
+
+Requests
+--------
+
+`app/Http/Requests/Post/StorePostRequest.php`
+- Validates create-post payloads from the frontend 5-step composer.
+- Normalizes title and content.
+- Enforces required payload fields such as account ids, visibility, interests, and publish mode.
+
+`app/Http/Requests/Post/UpdatePostRequest.php`
+- Reuses the same validation rules as post creation.
+- Keeps update logic consistent with create logic.
+
+Resource
+--------
+
+`app/Http/Resources/PostResource.php`
+- Converts backend post fields into the exact camelCase shape the frontend already expects.
+- Returns fields like:
+  - `publishMode`
+  - `scheduledAt`
+  - `publishedAt`
+  - `accountLabels`
+  - `failureReason`
+
+Service
+-------
+
+`app/Services/Post/PostService.php`
+- Central place for post business logic.
+- Resolves whether the current request is in:
+  - personal mode
+  - organization mode
+- Applies role-aware organization visibility:
+  - owners and managers get organization-wide access
+  - editors are scoped to their own posts
+- Handles:
+  - list
+  - show
+  - create
+  - update
+  - save draft
+  - delete
+- Derives status values from publish mode:
+  - `draft`
+  - `scheduled`
+  - `published`
+- Builds account labels and platforms from known demo account ids until real social account persistence is added.
+
+Controllers
+-----------
+
+`app/Http/Controllers/Post/ListPostsController.php`
+- Returns the list of posts for the resolved request context.
+
+`app/Http/Controllers/Post/ShowPostController.php`
+- Returns a single post if it is visible in the resolved request context.
+
+`app/Http/Controllers/Post/StorePostController.php`
+- Creates a post after validation succeeds.
+
+`app/Http/Controllers/Post/UpdatePostController.php`
+- Updates a post after validation succeeds.
+
+`app/Http/Controllers/Post/SavePostDraftController.php`
+- Moves an existing post back into draft status.
+
+`app/Http/Controllers/Post/DeletePostController.php`
+- Deletes a post from the allowed request context.
+
+Routes
+------
+
+`routes/api.php`
+- Personal mode routes:
+  - `GET /api/me/posts`
+  - `POST /api/me/posts`
+  - `GET /api/me/posts/{post}`
+  - `PATCH /api/me/posts/{post}`
+  - `POST /api/me/posts/{post}/save-draft`
+  - `DELETE /api/me/posts/{post}`
+- Organization mode routes:
+  - `GET /api/organizations/current/posts`
+  - `POST /api/organizations/current/posts`
+  - `GET /api/organizations/current/posts/{post}`
+  - `PATCH /api/organizations/current/posts/{post}`
+  - `POST /api/organizations/current/posts/{post}/save-draft`
+  - `DELETE /api/organizations/current/posts/{post}`
+
+Tests
+-----
+
+`tests/Feature/Post/PostEndpointsTest.php`
+- Verifies:
+  - personal users can create and list their own posts
+  - owner can view all organization posts
+  - editor only sees their own organization posts
+  - owner can update another member's organization post
+  - editor cannot update another member's organization post
+  - save-draft moves a scheduled post back to draft
+
+Where to change things later
+----------------------------
+
+If you need to change post visibility rules:
+- update `app/Services/Post/PostService.php`
+
+If you add approval logic for editors:
+- extend `PostService`
+- likely add approval status fields or a separate approvals table
+- update `PostResource` to expose the new state
+
+If you connect real social accounts:
+- replace the temporary account metadata mapping inside `PostService`
+- derive account labels and platforms from real connected accounts instead of demo ids
+
+If you add media upload persistence:
+- add a dedicated `post_media` table
+- keep the post record focused on the main post object
+- update `PostResource` to expose media references cleanly

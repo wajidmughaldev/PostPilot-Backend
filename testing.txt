@@ -8,6 +8,9 @@ Current tested areas
 - Auth foundation
 - Organization access request flow
 - Super-admin organization provisioning flow
+- Profile and settings module
+- Organization members and invite flow
+- Role-aware post foundation
 
 Important product rule
 ----------------------
@@ -560,6 +563,10 @@ Verification commands used for this chunk:
 Migration needed:
 - `php artisan migrate`
 
+If your database already had an older `posts` table from previous work:
+- the repair migration `2026_03_20_000002_sync_posts_table_schema.php` will add missing columns such as `user_id`, `organization_id`, `publish_mode`, and the audience metadata fields used by the current post composer
+- run `php artisan migrate` again after pulling the latest backend changes
+
 Current backend endpoints in scope:
 - `GET /api/settings`
 - `PATCH /api/settings`
@@ -726,3 +733,74 @@ Role and permission checks:
 Verification commands used for this chunk:
 - `php artisan test --filter=OrganizationMemberManagementTest`
 - `php artisan test --filter=Organization`
+
+========================================
+2026-03-20 Role-Aware Posts Foundation Test Notes
+========================================
+
+Migration needed:
+- `php artisan migrate`
+
+Current backend endpoints in scope:
+- `GET /api/me/posts`
+- `POST /api/me/posts`
+- `GET /api/me/posts/{id}`
+- `PATCH /api/me/posts/{id}`
+- `POST /api/me/posts/{id}/save-draft`
+- `DELETE /api/me/posts/{id}`
+- `GET /api/organizations/current/posts`
+- `POST /api/organizations/current/posts`
+- `GET /api/organizations/current/posts/{id}`
+- `PATCH /api/organizations/current/posts/{id}`
+- `POST /api/organizations/current/posts/{id}/save-draft`
+- `DELETE /api/organizations/current/posts/{id}`
+
+Create or update post request body:
+
+```json
+{
+  "title": "Sample Post",
+  "content": "This is a sample post body.",
+  "mediaName": "sample.png",
+  "mediaType": "image/png",
+  "accountIds": ["demo-instagram-account"],
+  "visibility": "public",
+  "ageMin": "18",
+  "ageMax": "45",
+  "locations": ["United States"],
+  "interests": ["Digital Marketing"],
+  "lookalikeAudience": false,
+  "publishMode": "schedule",
+  "scheduledAt": "2026-03-25T10:30:00",
+  "timezone": "UTC"
+}
+```
+
+Expected role behavior:
+- personal user:
+  - can create and manage only personal posts through `/api/me/posts`
+- organization owner:
+  - can view and manage all organization posts
+- organization manager:
+  - can view and manage all organization posts
+- organization editor:
+  - can only view and manage their own organization posts by default
+
+Browser verification flow:
+- log in as a normal user with no organization
+- create a post from `/posts/create`
+- confirm the post appears in `/posts`
+- edit it and save draft
+- delete it
+- log in as organization owner
+- create an organization post
+- log in as editor in the same organization
+- create an editor post
+- confirm editor only sees their own organization post
+- log back in as owner
+- confirm owner sees both owner and editor organization posts
+- confirm owner can edit the editor post
+
+Verification commands used for this chunk:
+- `php artisan test --filter=PostEndpointsTest`
+- `php artisan route:list --path=posts`
