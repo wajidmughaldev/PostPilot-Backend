@@ -152,7 +152,7 @@ class AuthEndpointsTest extends TestCase
 
     public function test_logout_requires_authentication(): void
     {
-        $this->postJson('/api/auth/logout')
+        $this->postJson('/api/logout')
             ->assertUnauthorized()
             ->assertJson([
                 'success' => false,
@@ -164,7 +164,7 @@ class AuthEndpointsTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $response = $this->actingAs($user, 'web')->postJson('/api/auth/logout');
+        $response = $this->actingAs($user, 'web')->postJson('/api/logout');
 
         $response
             ->assertOk()

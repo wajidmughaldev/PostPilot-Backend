@@ -309,3 +309,41 @@ Browser verification flow:
 Verification commands used for this chunk:
 - `php artisan test --filter=AuthEndpointsTest`
 - `php artisan route:list --path=login`
+
+========================================
+2026-03-19 Logout Restart Test Notes
+========================================
+
+Current backend endpoint in scope:
+- `POST /api/logout`
+
+Expected success response:
+
+```json
+{
+  "success": true,
+  "message": "Logout completed successfully.",
+  "data": {}
+}
+```
+
+Expected guest logout response:
+
+```json
+{
+  "success": false,
+  "message": "Unauthorized."
+}
+```
+
+Browser verification flow:
+- log in through `/login`
+- open the settings panel
+- click `Sign out`
+- confirm `POST /api/logout` returns `200`
+- confirm the app redirects to `/login`
+- refresh once and confirm `GET /api/me` returns `data: null`
+
+Verification commands used for this chunk:
+- `php artisan test --filter=AuthEndpointsTest`
+- `php artisan route:list --path=logout`

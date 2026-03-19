@@ -288,3 +288,34 @@ Backend Restart Chunk 2 - Login and Session Bootstrap
 - Build logout next on the root route so the restarted frontend can complete the auth cycle without `/api/auth/logout`.
 - Add frontend toast handling for throttling and invalid credentials if more UX polish is needed.
 - Review whether forgot-password and reset-password should also move to root routes for consistency in the next auth chunk.
+
+========================================
+2026-03-19 / SESSION
+Backend Restart Chunk 3 - Logout
+========================================
+
+1. What was added
+- Added the root logout endpoint `POST /api/logout` so the restarted frontend can end authenticated sessions on the same root-route pattern as register and login.
+- Updated auth feature tests to verify logout through the root route.
+- Connected the frontend sign-out action to the backend logout endpoint instead of clearing only local UI state.
+
+2. What each part does
+- `routes/api.php` now exposes `POST /api/logout` behind `auth:sanctum` while keeping the older `/api/auth/logout` alias available.
+- `LogoutController` continues to log out the Laravel web guard, invalidate the session, and regenerate the CSRF token after sign-out.
+- The frontend settings screen now calls `logoutUser()`, waits for the backend response, clears the current session state, removes the current-user query cache, and then redirects to `/login`.
+
+3. Important implementation decisions
+- Logout stayed session-based and did not introduce tokens or client-only logout logic, because the restarted auth system is using Sanctum SPA cookies and Laravel sessions.
+- The frontend now treats logout failure as a real error instead of silently clearing local state, which keeps client auth state and backend session state from drifting out of sync.
+- The root logout route was added for consistency with the restarted `register`, `login`, and `me` endpoints.
+
+4. Notes for frontend integration
+- Active logout endpoint is now `POST /api/logout`.
+- Successful logout response shape is:
+- `{"success":true,"message":"Logout completed successfully.","data":{}}`
+- The frontend sign-out action now depends on the backend response before redirecting the user to `/login`.
+
+5. Pending or next steps
+- Move forgot password and reset password to root routes for a fully consistent auth contract.
+- Add friendlier frontend Sonner messages for throttling and invalid credentials if needed.
+- Then move to the next product module once the base auth cycle is fully stable.

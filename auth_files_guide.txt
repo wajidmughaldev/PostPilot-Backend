@@ -393,3 +393,22 @@ Where to change login next
   - `E:\PostPilot-Frontend\types\auth.ts`
   - `E:\PostPilot-Frontend\lib\api\auth.ts`
   - `E:\PostPilot-Frontend\components\forms\login-form.tsx`
+
+Logout restart note
+-------------------
+
+For the backend restart logout chunk on 2026-03-19:
+- active frontend logout route is `POST /api/logout`
+- logout remains backed by the Laravel web guard and session invalidation
+- the frontend sign-out action now waits for the backend logout response before clearing client state
+
+Where to change logout next
+---------------------------
+- Change logout route exposure:
+  - `routes/api.php`
+- Change logout session invalidation behavior:
+  - `app/Http/Controllers/Auth/LogoutController.php`
+- Change frontend logout API usage:
+  - `E:\PostPilot-Frontend\lib\api\auth.ts`
+- Change frontend sign-out UX:
+  - `E:\PostPilot-Frontend\components\features\settings\user-settings-screen.tsx`
