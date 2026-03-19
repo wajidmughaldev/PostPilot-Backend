@@ -414,3 +414,80 @@ Auth UX Polish - Sonner Messages and Mailpit Guide
 
 5. Pending or next steps
 - The auth base is complete enough to stop here and move to the next backend module.
+
+========================================
+2026-03-19 / SESSION
+Profile Settings Chunk - Profile and Password Management
+========================================
+
+1. What was added
+- Added backend profile endpoints for fetching the authenticated profile, updating profile details, and updating password.
+- Added a new `username` column to the `users` table so the current frontend profile form can persist username properly.
+- Reworked the frontend settings modal so profile name, username, email, and password now use real backend APIs instead of local-only placeholder behavior.
+
+2. What each part does
+- `add_username_to_users_table` migration adds a nullable unique username field to the normalized users table.
+- `UpdateProfileRequest` validates and normalizes display name, email, and username input before the service layer receives it.
+- `UpdatePasswordRequest` validates current password, new password, and confirmation.
+- `ProfileService` updates profile fields and verifies the current password before changing it.
+- `ShowProfileController`, `UpdateProfileController`, and `UpdatePasswordController` expose the profile endpoints through thin controllers.
+- The frontend settings screen now fetches profile data on open, persists profile changes through `PATCH /api/profile`, and updates password through `PATCH /api/profile/password`.
+
+3. Important implementation decisions
+- Username was added to `users` instead of creating a separate profile table because the current MVP profile scope is still small and directly tied to the user identity record.
+- Profile and password updates were separated into distinct endpoints so password validation and error handling stay isolated from normal profile edits.
+- The frontend syncs the returned profile user back into the auth session and current-user cache immediately so header, sidebar, and settings UI stay consistent after a save.
+- The existing settings screen was simplified so only the profile/account/security parts are real in this chunk; the other tabs remain placeholders until their backend support exists.
+
+4. Notes for frontend integration
+- Active profile routes are:
+- `GET /api/profile`
+- `PATCH /api/profile`
+- `PATCH /api/profile/password`
+- Settings now save:
+- display name
+- username
+- email
+- current-password verified password changes
+- Profile photo preview is still local-only in this chunk and does not upload to the backend yet.
+
+5. Pending or next steps
+- Add profile photo upload if needed next.
+- Add delete account only after its cleanup and organization implications are defined.
+- Add persistent notification and preference settings in a separate chunk if those tabs should become real.
+
+========================================
+2026-03-19 / SESSION
+Profile Settings Chunk B - Profile Photo Upload
+========================================
+
+1. What was added
+- Added backend profile photo upload support with a dedicated avatar endpoint.
+- Added `avatar_path` to the users table and exposed a public `avatar_url` in the user resource payload.
+- Connected the existing popup settings photo upload control to the real backend upload endpoint.
+- Created the public storage link for local avatar URL access.
+
+2. What each part does
+- `add_avatar_path_to_users_table` adds a nullable avatar storage path on `users`.
+- `UpdateAvatarRequest` validates uploaded profile images as JPG or PNG up to 5MB.
+- `ProfileService` stores the uploaded file on the public disk and deletes the old avatar file when replacing it.
+- `UpdateAvatarController` returns the refreshed authenticated user payload after upload.
+- `AuthUserResource` now includes `avatar_url`, which the frontend can render directly in the settings popup and other user UI.
+
+3. Important implementation decisions
+- Only the storage path is persisted in the database; the public URL is generated in the resource layer so it remains environment-aware.
+- Avatar uploads use the public disk because the current frontend needs browser-visible image URLs without signed URL complexity.
+- Replacing the old avatar file on upload prevents orphaned files from building up unnecessarily in this MVP stage.
+
+4. Notes for frontend integration
+- Active avatar endpoint is:
+- `POST /api/profile/avatar`
+- Request must be multipart form data with:
+- `avatar`
+- Local development also needs:
+- `php artisan storage:link`
+- The settings popup upload button now sends the selected file to the backend instead of keeping it as a local-only preview.
+
+5. Pending or next steps
+- Delete personal account is the next logical settings-related feature if you want to stay in the same module.
+- Notification and personalization tabs are still placeholder-only.

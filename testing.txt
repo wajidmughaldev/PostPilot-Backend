@@ -444,3 +444,81 @@ Frontend UX notes added on 2026-03-19:
 - reset-password now shows a Sonner toast for missing token, success, and failure
 - local Mailpit help page is available at:
 - `http://localhost:3000/email-testing`
+
+========================================
+2026-03-19 Profile Settings Test Notes
+========================================
+
+Migration needed:
+- run `php artisan migrate`
+
+Current backend endpoints in scope:
+- `GET /api/profile`
+- `PATCH /api/profile`
+- `PATCH /api/profile/password`
+
+Profile update request:
+
+```json
+{
+  "name": "Wajid Khan",
+  "username": "wajid_khan",
+  "email": "wajid@example.com"
+}
+```
+
+Password update request:
+
+```json
+{
+  "current_password": "OldPass123",
+  "password": "NewPass123",
+  "password_confirmation": "NewPass123"
+}
+```
+
+Browser verification flow:
+- log in
+- open settings
+- update display name, username, and email
+- click `Save Changes`
+- confirm the header/sidebar user info updates without logging out
+- reopen settings and confirm saved values are shown
+- go to Security
+- update password with current password
+- confirm success toast appears
+- log out and log back in with the new password
+
+Verification commands used for this chunk:
+- `php artisan test --filter=ProfileEndpointsTest`
+- `php artisan test --filter=AuthEndpointsTest`
+
+========================================
+2026-03-19 Profile Photo Upload Test Notes
+========================================
+
+Migration and local setup needed:
+- `php artisan migrate`
+- `php artisan storage:link`
+
+Current backend endpoint in scope:
+- `POST /api/profile/avatar`
+
+Request type:
+- `multipart/form-data`
+
+Form field:
+- `avatar`
+
+Browser verification flow:
+- log in
+- open settings popup
+- stay on `Edit Profile`
+- upload a JPG or PNG image smaller than 5MB
+- confirm success toast appears
+- close and reopen settings
+- confirm the uploaded profile photo still shows
+
+Verification commands used for this chunk:
+- `php artisan test --filter=Profile`
+- `php artisan route:list --path=profile`

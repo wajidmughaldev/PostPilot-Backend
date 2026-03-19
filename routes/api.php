@@ -10,6 +10,10 @@ use App\Http\Controllers\Admin\CreateOrganizationController;
 use App\Http\Controllers\Admin\ListOrganizationAccessRequestsController;
 use App\Http\Controllers\Organization\MyOrganizationAccessRequestsController;
 use App\Http\Controllers\Organization\StoreOrganizationAccessRequestController;
+use App\Http\Controllers\Profile\ShowProfileController;
+use App\Http\Controllers\Profile\UpdateAvatarController;
+use App\Http\Controllers\Profile\UpdatePasswordController;
+use App\Http\Controllers\Profile\UpdateProfileController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -51,6 +55,11 @@ Route::prefix('posts')->group(function () {
 });
 
 Route::middleware('auth:sanctum')->group(function () {
+    Route::get('profile', ShowProfileController::class);
+    Route::patch('profile', UpdateProfileController::class);
+    Route::post('profile/avatar', UpdateAvatarController::class);
+    Route::patch('profile/password', UpdatePasswordController::class);
+
     Route::prefix('organization-access-requests')->group(function () {
         Route::post('/', StoreOrganizationAccessRequestController::class);
         Route::get('/me', MyOrganizationAccessRequestsController::class);

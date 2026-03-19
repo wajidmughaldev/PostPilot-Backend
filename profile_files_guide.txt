@@ -1,0 +1,108 @@
+Profile Settings Files Guide
+============================
+
+What this chunk covers
+----------------------
+- fetch authenticated user profile
+- update display name, username, and email
+- update password with current-password verification
+- upload profile photo
+
+Backend routes
+--------------
+- `GET /api/profile`
+- `PATCH /api/profile`
+- `POST /api/profile/avatar`
+- `PATCH /api/profile/password`
+
+Files and responsibilities
+--------------------------
+
+1. `database/migrations/2026_03_19_100000_add_username_to_users_table.php`
+- Adds a nullable unique `username` column to `users`.
+- Keeps profile data normalized instead of storing usernames in a separate settings blob.
+
+2. `database/migrations/2026_03_19_110000_add_avatar_path_to_users_table.php`
+- Adds a nullable `avatar_path` column to `users`.
+- Stores only the file path, not the full URL, so public URLs can be generated per environment.
+
+3. `app/Http/Requests/Profile/UpdateProfileRequest.php`
+- Validates profile update input.
+- Normalizes:
+  - display name spacing
+  - email casing and trimming
+  - username trimming, lowercasing, and `@` removal
+- Protects unique email and unique username rules.
+
+4. `app/Http/Requests/Profile/UpdatePasswordRequest.php`
+- Validates current password, new password, and confirmation.
+- Keeps password policy in one backend request layer.
+
+5. `app/Http/Requests/Profile/UpdateAvatarRequest.php`
+- Validates uploaded avatar image type and size.
+- Restricts profile photos to JPG and PNG up to 5MB.
+
+6. `app/Services/Profile/ProfileService.php`
+- Contains the business logic for profile updates.
+- Updates name, email, and username.
+- Verifies the current password before saving a new password.
+- Stores profile photos on the public disk and replaces the old avatar file when a new one is uploaded.
+
+7. `app/Http/Controllers/Profile/ShowProfileController.php`
+- Returns the authenticated user's current profile payload.
+
+8. `app/Http/Controllers/Profile/UpdateProfileController.php`
+- Calls the profile service and returns the refreshed user resource.
+
+9. `app/Http/Controllers/Profile/UpdateAvatarController.php`
+- Accepts the profile photo upload and returns the refreshed user resource.
+
+10. `app/Http/Controllers/Profile/UpdatePasswordController.php`
+- Calls the password update logic and returns a success response.
+
+11. `app/Http/Resources/AuthUserResource.php`
+- Now includes `username` and `avatar_url` so auth, profile, header, sidebar, and settings UI all use the same user shape.
+
+12. `app/Models/User.php`
+- Adds `username` and `avatar_path` to `$fillable`.
+
+13. `tests/Feature/Profile/ProfileEndpointsTest.php`
+- Locks profile fetch, profile update, duplicate validation, incorrect current password, and password update behavior.
+
+14. `tests/Feature/Profile/ProfileAvatarTest.php`
+- Locks avatar upload authentication and file storage behavior.
+
+Frontend integration points
+---------------------------
+
+1. `E:\PostPilot-Frontend\lib\api\profile.ts`
+- Calls the profile endpoints.
+
+2. `E:\PostPilot-Frontend\components\features\settings\user-settings-screen.tsx`
+- Loads current profile data when settings open.
+- Saves display name, username, and email through `PATCH /api/profile`.
+- Uploads profile photos through `POST /api/profile/avatar`.
+- Updates password through `PATCH /api/profile/password`.
+- Syncs the returned user back into the auth session and current-user cache.
+
+3. `E:\PostPilot-Frontend\types\auth.ts`
+- Adds `username` and profile/password request-response types.
+
+4. `E:\PostPilot-Frontend\lib\auth\session.ts`
+- Allows the frontend session user to carry `username`.
+
+If we extend profile/settings later
+-----------------------------------
+
+Case 1: Add profile photo upload
+- done in the current chunk
+- local setup still requires `php artisan storage:link`
+
+Case 2: Add delete account
+- add a dedicated destructive action endpoint
+- require password confirmation
+- decide how organization ownership and related cleanup should be handled
+
+Case 3: Add notification/preferences persistence
+- create a user settings table or add clearly scoped fields
+- avoid mixing preferences into the profile endpoint unless they stay small and stable
