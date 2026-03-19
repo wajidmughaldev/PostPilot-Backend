@@ -165,3 +165,62 @@ Common problems and fixes
 - check `.env`
 - run migrations
 - check `storage/logs/laravel.log`
+
+========================================
+2026-03-19 Register Restart Test Notes
+========================================
+
+Current backend endpoint in scope:
+- `POST /api/register`
+
+Frontend registration payload:
+
+```json
+{
+  "name": "Jane Doe",
+  "email": "jane@example.com",
+  "password": "Secure123",
+  "password_confirmation": "Secure123"
+}
+```
+
+Expected success response:
+
+```json
+{
+  "success": true,
+  "message": "Account created successfully. You can now sign in.",
+  "data": {
+    "user": {
+      "id": 1,
+      "name": "Jane Doe",
+      "email": "jane@example.com"
+    }
+  }
+}
+```
+
+Expected duplicate email response:
+
+```json
+{
+  "success": false,
+  "message": "An account with this email already exists.",
+  "errors": {
+    "email": [
+      "An account with this email already exists."
+    ]
+  }
+}
+```
+
+Verification commands used for this chunk:
+- `composer install`
+- `php artisan key:generate --force`
+- `php artisan test --filter=AuthEndpointsTest`
+
+Registration polish checks:
+- submit a name with extra spaces and confirm it is stored trimmed
+- submit an uppercase email and confirm it is stored lowercase
+- submit the register form multiple times quickly and confirm throttling eventually responds with a `429`
+- confirm successful registration redirects to `/login`

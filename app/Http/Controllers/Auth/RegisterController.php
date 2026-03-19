@@ -1,7 +1,7 @@
 <?php
 
 namespace App\Http\Controllers\Auth;
-use Illuminate\Support\Facades\Log;
+
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Services\Auth\RegisterService;
@@ -11,9 +11,12 @@ class RegisterController extends Controller
 {
     public function __invoke(RegisterRequest $request, RegisterService $registerService): JsonResponse
     {
-        // Log::info('Register request data:', $request->all());
-        $payload = $registerService->register($request, $request->validated());
+        $payload = $registerService->register($request->validated());
 
-        return $this->successResponse('Registration completed successfully.', $payload, 201);
+        return $this->successResponse(
+            'Account created successfully. You can now sign in.',
+            $payload,
+            201
+        );
     }
 }

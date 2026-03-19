@@ -180,3 +180,72 @@ Frontend Sanctum Integration And Final Redirect Adjustment
 5. Pending or next steps
 - Add super-admin frontend review screens for organization request approval.
 - Add richer dashboard UX for pending vs approved organization status and role-aware navigation.
+
+========================================
+2026-03-19 / SESSION
+Backend Restart Chunk 1 - Registration Only
+========================================
+
+1. What was added
+- Reworked the backend registration flow around the current frontend root endpoint `POST /api/register`.
+- Simplified the registration service so this first restart chunk only creates the user and returns a clean user payload.
+- Added human-friendly validation messages for full name, email, password length, password confirmation, and duplicate email.
+- Updated the frontend shared API client so it automatically fetches `/sanctum/csrf-cookie` before mutating requests.
+- Added a local `.env` file for the restarted backend and generated a fresh application key so the project boots correctly.
+
+2. What each part does
+- `RegisterRequest` now validates registration with frontend-friendly rules and messages that can be shown directly in the existing UI notification area.
+- `RegisterService` creates the user in a transaction, assigns the default `platform_role` of `user`, and returns the normalized `AuthUserResource`.
+- `RegisterController` now returns a simpler message: `Account created successfully. You can now sign in.`
+- The frontend Axios client now handles Sanctum CSRF bootstrap automatically so registration works without manual Postman-style token handling.
+- The exception handler now promotes the first validation error into the top-level `message` field, which makes frontend error messages more human-friendly.
+
+3. Important implementation decisions
+- Registration was intentionally kept separate from login for this restart so the backend can be rebuilt one feature at a time without mixing unfinished auth-session work into the first chunk.
+- The registration response was kept minimal and stable instead of returning a token or onboarding contract the current registration screen does not yet need.
+- Human-readable validation messages were added at the backend level so the frontend does not need custom message mapping for common registration failures.
+- The database remains normalized: user creation writes only to `users`, with platform role kept on the user record and organization relationships left for later chunks.
+
+4. Notes for frontend integration
+- Active frontend registration call is `POST /api/register`.
+- Success response shape is:
+- `{"success":true,"message":"Account created successfully. You can now sign in.","data":{"user":{...}}}`
+- Duplicate email failures now return:
+- `{"success":false,"message":"An account with this email already exists.","errors":{"email":[...]}}`
+- The frontend shared API client now performs the Sanctum CSRF bootstrap automatically before registration.
+
+5. Pending or next steps
+- Build the login chunk next.
+- Add current-user session bootstrap and logout after login is ready.
+- Add register-to-login UX flow once the login chunk is complete.
+
+========================================
+2026-03-19 / SESSION
+Registration Polish - Normalization, Throttle, Redirect
+========================================
+
+1. What was added
+- Added backend input normalization for registration name and email.
+- Added request throttling to both registration route variants.
+- Updated the frontend register form to redirect users to `/login` after successful account creation.
+- Added a backend feature test to lock the normalization behavior.
+
+2. What each part does
+- `RegisterRequest` now trims extra whitespace from the submitted name and lowercases the email before validation and persistence.
+- The registration routes now use `throttle:6,1`, which limits repeated account creation attempts to a simple MVP-safe rate.
+- The frontend registration screen now shows the success message and then sends the user to the login page automatically.
+
+3. Important implementation decisions
+- Normalization happens in the Form Request so the rest of the backend only works with cleaned values.
+- Rate limiting was added inline on the route as `throttle:6,1` to keep this first auth chunk simple without introducing a custom named limiter yet.
+- The frontend redirect happens after a short delay so the user still sees the success feedback before landing on login.
+
+4. Notes for frontend integration
+- Registration still posts to `POST /api/register`.
+- Success flow is now: submit form -> success message -> redirect to `/login`.
+- The backend now treats `JANE@EXAMPLE.COM` and `jane@example.com` as the same email consistently.
+
+5. Pending or next steps
+- Build login next.
+- Add current session bootstrap and logout.
+- Consider a dedicated frontend field-level duplicate-email display once login is complete.

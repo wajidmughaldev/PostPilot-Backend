@@ -343,3 +343,25 @@ Recommended future additions for this auth module
 - Add organization onboarding persistence in the next chunk
 - Add audit logging later for login and password reset events if support/admin visibility becomes necessary
 - Add rate limit tuning for auth endpoints if abuse appears during testing
+
+Registration restart note
+-------------------------
+
+For the backend restart on 2026-03-19, the registration slice was simplified again:
+- frontend entry route is now `POST /api/register`
+- `RegisterService` creates the user and returns only a clean `user` payload
+- registration does not auto-login in this restart chunk
+- validation messages are intentionally human-readable for direct frontend display
+- the frontend shared API client now auto-fetches `/sanctum/csrf-cookie` before registration
+
+Where to change registration next
+---------------------------------
+- Change validation rules or wording:
+  - `app/Http/Requests/Auth/RegisterRequest.php`
+- Change registration write logic:
+  - `app/Services/Auth/RegisterService.php`
+- Change registration response shape:
+  - `app/Http\Controllers\Auth\RegisterController.php`
+  - `app/Http\Resources\AuthUserResource.php`
+- Change registration route exposure:
+  - `routes/api.php`

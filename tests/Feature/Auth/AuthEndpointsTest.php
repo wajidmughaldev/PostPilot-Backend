@@ -14,9 +14,9 @@ class AuthEndpointsTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_register_creates_user_logs_them_in_and_returns_onboarding_payload(): void
+    public function test_register_creates_user_and_returns_human_friendly_payload(): void
     {
-        $response = $this->postJson('/api/auth/register', [
+        $response = $this->postJson('/api/register', [
             'name' => 'Jane Doe',
             'email' => 'jane@example.com',
             'password' => 'Secure123',
@@ -27,21 +27,66 @@ class AuthEndpointsTest extends TestCase
             ->assertCreated()
             ->assertJson([
                 'success' => true,
-                'message' => 'Registration completed successfully.',
+                'message' => 'Account created successfully. You can now sign in.',
                 'data' => [
                     'user' => [
                         'name' => 'Jane Doe',
                         'email' => 'jane@example.com',
                     ],
-                    'onboarding' => [
-                        'organization_required' => true,
-                        'organization_id' => null,
+                ],
+            ]);
+
+        $this->assertGuest('web');
+        $this->assertDatabaseHas('users', ['email' => 'jane@example.com']);
+    }
+
+    public function test_register_returns_human_friendly_duplicate_email_error(): void
+    {
+        User::factory()->create([
+            'email' => 'jane@example.com',
+        ]);
+
+        $response = $this->postJson('/api/register', [
+            'name' => 'Jane Doe',
+            'email' => 'jane@example.com',
+            'password' => 'Secure123',
+            'password_confirmation' => 'Secure123',
+        ]);
+
+        $response
+            ->assertStatus(422)
+            ->assertJson([
+                'success' => false,
+                'message' => 'An account with this email already exists.',
+            ])
+            ->assertJsonValidationErrors(['email']);
+    }
+
+    public function test_register_normalizes_name_spacing_and_email_case(): void
+    {
+        $response = $this->postJson('/api/register', [
+            'name' => '  Jane    Doe  ',
+            'email' => '  JANE@EXAMPLE.COM  ',
+            'password' => 'Secure123',
+            'password_confirmation' => 'Secure123',
+        ]);
+
+        $response
+            ->assertCreated()
+            ->assertJson([
+                'success' => true,
+                'data' => [
+                    'user' => [
+                        'name' => 'Jane Doe',
+                        'email' => 'jane@example.com',
                     ],
                 ],
             ]);
 
-        $this->assertAuthenticated('web');
-        $this->assertDatabaseHas('users', ['email' => 'jane@example.com']);
+        $this->assertDatabaseHas('users', [
+            'name' => 'Jane Doe',
+            'email' => 'jane@example.com',
+        ]);
     }
 
     public function test_login_returns_authenticated_payload_for_valid_credentials(): void
@@ -91,7 +136,7 @@ class AuthEndpointsTest extends TestCase
             ->assertStatus(422)
             ->assertJson([
                 'success' => false,
-                'message' => 'The given data was invalid.',
+                'message' => 'The provided credentials are incorrect.',
             ])
             ->assertJsonValidationErrors(['email']);
 
