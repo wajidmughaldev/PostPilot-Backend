@@ -8,10 +8,16 @@ trait ApiResponse
 {
     protected function successResponse(string $message, mixed $data = [], int $status = 200): JsonResponse
     {
+        $normalizedData = $data;
+
+        if (is_array($data) && ! array_is_list($data)) {
+            $normalizedData = (object) $data;
+        }
+
         return response()->json([
             'success' => true,
             'message' => $message,
-            'data' => is_array($data) ? (object) $data : $data,
+            'data' => $normalizedData,
         ], $status);
     }
 

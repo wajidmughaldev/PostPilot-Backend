@@ -94,3 +94,58 @@ Where future related changes should go
 - Support notes or review states: extend the request table and provisioning/review services.
 - Multi-organization switching: expand auth response and membership handling, not the users table.
 - Frontend dashboard status views: consume `organization_access_requests` and `auth/me` organization context.
+
+==================================
+2026-03-19 Frontend Contract Update
+==================================
+
+The active frontend organization screen now uses a request-based onboarding contract with these endpoints:
+
+- `POST /api/organization-requests`
+- `GET /api/organization-requests/latest`
+- `DELETE /api/organization-requests/{id}`
+- `GET /api/organizations/current`
+- `GET /api/admin/organization-requests`
+- `POST /api/admin/organization-requests/{id}/approve`
+- `POST /api/admin/organization-requests/{id}/reject`
+- `GET /api/admin/organizations`
+
+To support that contract, the organization tables were expanded with a new migration:
+
+- `database/migrations/2026_03_19_130000_expand_organization_tables_for_frontend_flow.php`
+
+This migration adds the fields that the live frontend organization request form actually submits and displays:
+
+- On `organization_access_requests`
+  - `contact_person_name`
+  - `timezone`
+  - `bio`
+  - `location`
+  - `industry`
+  - `organization_size`
+
+- On `organizations`
+  - `timezone`
+  - `contact_person_name`
+  - `contact_person_email`
+  - `contact_person_phone`
+  - `website`
+  - `bio`
+  - `location`
+  - `industry`
+  - `organization_size`
+
+Important implementation notes:
+- The backend still uses the existing normalized tables instead of creating a second organization flow.
+- `OrganizationAccessRequestResource` was reshaped to the camelCase payload expected by the current Next.js frontend.
+- Approval now creates an `organizations` row and an `organization_members` owner row so the requester becomes the organization owner after super-admin approval.
+- Withdraw only allows the requesting user to remove their own pending or rejected request.
+
+Current testing coverage now includes:
+- user request submission
+- duplicate pending-request protection
+- latest-request retrieval
+- user request withdrawal
+- super-admin approval
+- super-admin rejection
+- admin access restrictions

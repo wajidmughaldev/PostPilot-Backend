@@ -10,9 +10,12 @@ class ListOrganizationAccessRequestsController extends Controller
 {
     public function __invoke(OrganizationAccessRequestService $organizationAccessRequestService): JsonResponse
     {
+        $payload = $organizationAccessRequestService->listForAdmin();
+        $requests = $payload['organization_access_requests'];
+
         return $this->successResponse(
-            'Organization access requests retrieved successfully.',
-            $organizationAccessRequestService->listForAdmin()
+            'Organization requests retrieved successfully.',
+            $requests
         );
     }
 }

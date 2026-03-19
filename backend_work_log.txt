@@ -560,3 +560,52 @@ Settings Chunk D - General, Notifications, and Personalization Persistence
 - If needed, hook saved theme preference into the app-wide theme system instead of only storing it.
 - Notification channels can be expanded later without changing the identity/auth tables.
 - The next larger product module can start after settings if you want to move on from account management.
+
+========================================
+2026-03-19 / SESSION
+Organization Chunk A - Frontend Contract Foundation
+========================================
+
+1. What was added
+- Expanded the organization and organization request tables so they can store the real fields used by the live frontend request form.
+- Added frontend-facing organization request routes for submit, latest status lookup, and request withdrawal.
+- Added frontend-facing organization admin routes for request approval, request rejection, and organization listing.
+- Added a current organization endpoint for the dashboard organization screen.
+
+2. What each part does
+- `expand_organization_tables_for_frontend_flow` adds timezone, contact person, bio, location, industry, and organization size fields where the frontend already needs them.
+- `OrganizationAccessRequestService` now stores request data using the frontend field names, returns the latest request, supports withdrawal, returns the current organization for a user, lists admin organizations, and handles approve/reject actions.
+- `OrganizationAccessRequestResource` now maps backend columns into the camelCase request payload shape expected by the frontend hooks.
+- `OrganizationResource` now includes the extra organization detail fields so the organization screen can show the approved organization record without a second transform layer.
+- New organization controllers expose the exact request-based contract used by the frontend:
+- latest request
+- current organization
+- withdraw request
+- approve request
+- reject request
+- list admin organizations
+
+3. Important implementation decisions
+- I reused the existing normalized organization tables instead of creating a second onboarding structure. This keeps the backend scalable and avoids duplicate business rules.
+- The database schema was expanded with a migration rather than packing the new frontend fields into the old `message` column or dropping data.
+- Approval assigns the requester as `owner` in `organization_members`, which fits the frontend organization role model better than the older legacy `organization_admin` naming.
+- Response shapes were flattened so the frontend receives the request or organization directly in `data`, matching its current API helper types.
+
+4. Notes for frontend integration
+- Active user routes:
+- `POST /api/organization-requests`
+- `GET /api/organization-requests/latest`
+- `DELETE /api/organization-requests/{id}`
+- `GET /api/organizations/current`
+- Active admin routes:
+- `GET /api/admin/organization-requests`
+- `POST /api/admin/organization-requests/{id}/approve`
+- `POST /api/admin/organization-requests/{id}/reject`
+- `GET /api/admin/organizations`
+- The frontend organization request form fields now map one-to-one with backend validation and persistence.
+- The current frontend mock fallback can remain for local no-backend mode, but these routes now exist and pass real backend tests.
+
+5. Pending or next steps
+- Hook the organization screen and admin organization review screens through browser testing against the real backend instead of mock fallback.
+- Add organization members and invite flow next.
+- Add real organization-scoped accounts and posts only after the membership layer is ready.

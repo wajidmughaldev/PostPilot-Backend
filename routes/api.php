@@ -7,9 +7,15 @@ use App\Http\Controllers\Auth\MeController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Auth\ResetPasswordController;
 use App\Http\Controllers\Admin\CreateOrganizationController;
+use App\Http\Controllers\Admin\ApproveOrganizationRequestController;
 use App\Http\Controllers\Admin\ListOrganizationAccessRequestsController;
+use App\Http\Controllers\Admin\ListOrganizationsController;
+use App\Http\Controllers\Admin\RejectOrganizationRequestController;
+use App\Http\Controllers\Organization\CurrentOrganizationController;
+use App\Http\Controllers\Organization\LatestOrganizationAccessRequestController;
 use App\Http\Controllers\Organization\MyOrganizationAccessRequestsController;
 use App\Http\Controllers\Organization\StoreOrganizationAccessRequestController;
+use App\Http\Controllers\Organization\WithdrawOrganizationAccessRequestController;
 use App\Http\Controllers\Profile\ShowProfileController;
 use App\Http\Controllers\Profile\DeleteAccountController;
 use App\Http\Controllers\Profile\UpdateAvatarController;
@@ -66,13 +72,19 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('settings', ShowUserSettingsController::class);
     Route::patch('settings', UpdateUserSettingsController::class);
 
-    Route::prefix('organization-access-requests')->group(function () {
+    Route::get('organizations/current', CurrentOrganizationController::class);
+
+    Route::prefix('organization-requests')->group(function () {
         Route::post('/', StoreOrganizationAccessRequestController::class);
-        Route::get('/me', MyOrganizationAccessRequestsController::class);
+        Route::get('latest', LatestOrganizationAccessRequestController::class);
+        Route::delete('{organizationAccessRequest}', WithdrawOrganizationAccessRequestController::class);
     });
 
     Route::prefix('admin')->middleware('can:access-super-admin')->group(function () {
-        Route::get('organization-access-requests', ListOrganizationAccessRequestsController::class);
+        Route::get('organization-requests', ListOrganizationAccessRequestsController::class);
+        Route::post('organization-requests/{organizationAccessRequest}/approve', ApproveOrganizationRequestController::class);
+        Route::post('organization-requests/{organizationAccessRequest}/reject', RejectOrganizationRequestController::class);
+        Route::get('organizations', ListOrganizationsController::class);
         Route::post('organizations', CreateOrganizationController::class);
     });
 });

@@ -596,3 +596,66 @@ Browser verification flow:
 Verification commands used for this chunk:
 - `php artisan test --filter=UserSettingsTest`
 - `php artisan route:list --path=settings`
+
+========================================
+2026-03-19 Organization Foundation Frontend Contract Test Notes
+========================================
+
+Migration needed:
+- `php artisan migrate`
+
+Current backend endpoints in scope:
+- `POST /api/organization-requests`
+- `GET /api/organization-requests/latest`
+- `DELETE /api/organization-requests/{id}`
+- `GET /api/organizations/current`
+- `GET /api/admin/organization-requests`
+- `POST /api/admin/organization-requests/{id}/approve`
+- `POST /api/admin/organization-requests/{id}/reject`
+- `GET /api/admin/organizations`
+
+Request body for `POST /api/organization-requests`:
+
+```json
+{
+  "name": "Acme Studio",
+  "contact_person_name": "Owner Name",
+  "contact_person_email": "owner@acme.test",
+  "contact_person_phone": "+92 300 1234567",
+  "timezone": "Asia/Karachi",
+  "website": "https://acme.test",
+  "bio": "We need organization access for our marketing workflow.",
+  "location": "Karachi, Pakistan",
+  "industry": "Marketing Agency",
+  "organization_size": "11-25"
+}
+```
+
+Request body for `POST /api/admin/organization-requests/{id}/reject`:
+
+```json
+{
+  "reason": "Please provide a clearer company website and contact details."
+}
+```
+
+Browser verification flow:
+- log in as a normal user
+- open `/organization`
+- submit an organization request
+- confirm the pending state appears
+- refresh and confirm the latest request still appears
+- withdraw the request and confirm the form becomes available again
+- log in as super admin
+- open the admin organization request screen
+- approve or reject a request
+- log back in as the requesting user
+- open `/organization`
+- confirm approved users now see their organization details
+- confirm rejected users see the rejection reason and can resubmit
+
+Verification commands used for this chunk:
+- `php artisan test --filter=OrganizationAccessRequestTest`
+- `php artisan test --filter=OrganizationProvisioningTest`
+- `php artisan route:list --path=organization`
+- `php artisan test`

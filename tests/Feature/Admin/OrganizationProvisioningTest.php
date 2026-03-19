@@ -16,8 +16,6 @@ class OrganizationProvisioningTest extends TestCase
 
     public function test_super_admin_can_create_organization_from_access_request(): void
     {
-        Notification::fake();
-
         $requester = User::factory()->create([
             'platform_role' => 'user',
         ]);
@@ -29,31 +27,26 @@ class OrganizationProvisioningTest extends TestCase
         $accessRequestId = OrganizationAccessRequest::query()->create([
             'user_id' => $requester->id,
             'requested_organization_name' => 'Acme Studio',
+            'contact_person_name' => 'Owner Name',
             'contact_email' => 'owner@acme.test',
+            'timezone' => 'Asia/Karachi',
+            'industry' => 'Marketing Agency',
+            'organization_size' => '11-25',
             'status' => 'pending',
         ])->id;
 
         Sanctum::actingAs($superAdmin);
 
-        $response = $this->postJson('/api/admin/organizations', [
-            'organization_access_request_id' => $accessRequestId,
-            'name' => 'Acme Studio',
-            'review_notes' => 'Approved after support review.',
-        ]);
+        $response = $this->postJson("/api/admin/organization-requests/{$accessRequestId}/approve");
 
         $response
-            ->assertCreated()
+            ->assertOk()
             ->assertJson([
                 'success' => true,
-                'message' => 'Organization created successfully.',
+                'message' => 'Organization request approved successfully.',
                 'data' => [
-                    'organization' => [
-                        'name' => 'Acme Studio',
-                        'status' => 'active',
-                    ],
-                    'organization_access_request' => [
-                        'status' => 'approved',
-                    ],
+                    'name' => 'Acme Studio',
+                    'status' => 'approved',
                 ],
             ]);
 
@@ -64,15 +57,13 @@ class OrganizationProvisioningTest extends TestCase
 
         $this->assertDatabaseHas('organization_members', [
             'user_id' => $requester->id,
-            'role' => 'organization_admin',
+            'role' => 'owner',
         ]);
 
         $this->assertDatabaseHas('organization_access_requests', [
             'id' => $accessRequestId,
             'status' => 'approved',
         ]);
-
-        Notification::assertSentTo($requester, OrganizationApprovedNotification::class);
     }
 
     public function test_non_super_admin_cannot_create_organization(): void
@@ -81,20 +72,26 @@ class OrganizationProvisioningTest extends TestCase
             'platform_role' => 'user',
         ]);
 
+        $accessRequestId = OrganizationAccessRequest::query()->create([
+            'user_id' => $user->id,
+            'requested_organization_name' => 'Blocked Org',
+            'contact_person_name' => 'Owner Name',
+            'contact_email' => 'owner@blocked.test',
+            'timezone' => 'Asia/Karachi',
+            'industry' => 'Marketing Agency',
+            'organization_size' => '11-25',
+            'status' => 'pending',
+        ])->id;
+
         Sanctum::actingAs($user);
 
-        $response = $this->postJson('/api/admin/organizations', [
-            'organization_access_request_id' => 1,
-            'name' => 'Blocked Org',
-        ]);
+        $response = $this->postJson("/api/admin/organization-requests/{$accessRequestId}/approve");
 
         $response->assertForbidden();
     }
 
-    public function test_me_endpoint_reflects_organization_context_after_super_admin_provisions_org(): void
+    public function test_super_admin_can_reject_organization_request(): void
     {
-        Notification::fake();
-
         $requester = User::factory()->create([
             'platform_role' => 'user',
         ]);
@@ -106,32 +103,33 @@ class OrganizationProvisioningTest extends TestCase
         $accessRequestId = OrganizationAccessRequest::query()->create([
             'user_id' => $requester->id,
             'requested_organization_name' => 'Acme Studio',
+            'contact_person_name' => 'Owner Name',
             'contact_email' => 'owner@acme.test',
+            'timezone' => 'Asia/Karachi',
+            'industry' => 'Marketing Agency',
+            'organization_size' => '11-25',
             'status' => 'pending',
         ])->id;
 
         Sanctum::actingAs($superAdmin);
 
-        $this->postJson('/api/admin/organizations', [
-            'organization_access_request_id' => $accessRequestId,
-            'name' => 'Acme Studio',
-        ])->assertCreated();
-
-        Sanctum::actingAs($requester->fresh());
-
-        $this->getJson('/api/auth/me')
+        $this->postJson("/api/admin/organization-requests/{$accessRequestId}/reject", [
+            'reason' => 'Please provide a clearer company website.',
+        ])
             ->assertOk()
             ->assertJson([
                 'success' => true,
+                'message' => 'Organization request rejected successfully.',
                 'data' => [
-                    'organization' => [
-                        'name' => 'Acme Studio',
-                    ],
-                    'onboarding' => [
-                        'organization_required' => false,
-                        'organization_request_status' => 'approved',
-                    ],
+                    'status' => 'rejected',
+                    'rejectionReason' => 'Please provide a clearer company website.',
                 ],
             ]);
+
+        $this->assertDatabaseHas('organization_access_requests', [
+            'id' => $accessRequestId,
+            'status' => 'rejected',
+            'review_notes' => 'Please provide a clearer company website.',
+        ]);
     }
 }

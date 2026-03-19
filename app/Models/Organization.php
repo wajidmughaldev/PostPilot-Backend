@@ -13,8 +13,17 @@ class Organization extends Model
 
     protected $fillable = [
         'name',
+        'timezone',
         'slug',
         'status',
+        'contact_person_name',
+        'contact_person_email',
+        'contact_person_phone',
+        'website',
+        'bio',
+        'location',
+        'industry',
+        'organization_size',
         'created_by',
     ];
 

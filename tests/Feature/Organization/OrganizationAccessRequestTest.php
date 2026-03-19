@@ -15,31 +15,36 @@ class OrganizationAccessRequestTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $response = $this->actingAs($user, 'web')->postJson('/api/organization-access-requests', [
-            'requested_organization_name' => 'Acme Studio',
-            'contact_email' => 'owner@acme.test',
-            'contact_phone' => '1234567890',
-            'website_url' => 'https://acme.test',
-            'message' => 'We need access for our marketing team.',
+        $response = $this->actingAs($user, 'web')->postJson('/api/organization-requests', [
+            'name' => 'Acme Studio',
+            'contact_person_name' => 'Owner Name',
+            'contact_person_email' => 'owner@acme.test',
+            'contact_person_phone' => '1234567890',
+            'timezone' => 'Asia/Karachi',
+            'website' => 'https://acme.test',
+            'bio' => 'We need access for our marketing team.',
+            'location' => 'Karachi',
+            'industry' => 'Marketing Agency',
+            'organization_size' => '11-25',
         ]);
 
         $response
             ->assertCreated()
             ->assertJson([
                 'success' => true,
-                'message' => 'Organization access request submitted successfully.',
+                'message' => 'Organization request submitted successfully.',
                 'data' => [
-                    'organization_access_request' => [
-                        'requested_organization_name' => 'Acme Studio',
-                        'contact_email' => 'owner@acme.test',
-                        'status' => 'pending',
-                    ],
+                    'name' => 'Acme Studio',
+                    'contactPersonEmail' => 'owner@acme.test',
+                    'status' => 'pending',
                 ],
             ]);
 
         $this->assertDatabaseHas('organization_access_requests', [
             'user_id' => $user->id,
             'requested_organization_name' => 'Acme Studio',
+            'contact_person_name' => 'Owner Name',
+            'timezone' => 'Asia/Karachi',
             'status' => 'pending',
         ]);
     }
@@ -51,13 +56,21 @@ class OrganizationAccessRequestTest extends TestCase
         OrganizationAccessRequest::query()->create([
             'user_id' => $user->id,
             'requested_organization_name' => 'Acme Studio',
+            'contact_person_name' => 'Owner Name',
             'contact_email' => 'owner@acme.test',
+            'timezone' => 'Asia/Karachi',
+            'industry' => 'Marketing Agency',
+            'organization_size' => '11-25',
             'status' => 'pending',
         ]);
 
-        $response = $this->actingAs($user, 'web')->postJson('/api/organization-access-requests', [
-            'requested_organization_name' => 'Second Request',
-            'contact_email' => 'owner@acme.test',
+        $response = $this->actingAs($user, 'web')->postJson('/api/organization-requests', [
+            'name' => 'Second Request',
+            'contact_person_name' => 'Owner Name',
+            'contact_person_email' => 'owner@acme.test',
+            'timezone' => 'Asia/Karachi',
+            'industry' => 'Marketing Agency',
+            'organization_size' => '11-25',
         ]);
 
         $response
@@ -65,24 +78,61 @@ class OrganizationAccessRequestTest extends TestCase
             ->assertJsonValidationErrors(['organization_access_request']);
     }
 
-    public function test_authenticated_user_can_list_their_organization_access_requests(): void
+    public function test_authenticated_user_can_get_latest_organization_access_request(): void
     {
         $user = User::factory()->create();
 
         OrganizationAccessRequest::query()->create([
             'user_id' => $user->id,
             'requested_organization_name' => 'Acme Studio',
+            'contact_person_name' => 'Owner Name',
             'contact_email' => 'owner@acme.test',
+            'timezone' => 'Asia/Karachi',
+            'industry' => 'Marketing Agency',
+            'organization_size' => '11-25',
             'status' => 'pending',
         ]);
 
-        $response = $this->actingAs($user, 'web')->getJson('/api/organization-access-requests/me');
+        $response = $this->actingAs($user, 'web')->getJson('/api/organization-requests/latest');
 
         $response
             ->assertOk()
             ->assertJson([
                 'success' => true,
-                'message' => 'Organization access requests retrieved successfully.',
+                'message' => 'Latest organization request retrieved successfully.',
+                'data' => [
+                    'name' => 'Acme Studio',
+                    'status' => 'pending',
+                ],
             ]);
+    }
+
+    public function test_authenticated_user_can_withdraw_their_request(): void
+    {
+        $user = User::factory()->create();
+
+        $request = OrganizationAccessRequest::query()->create([
+            'user_id' => $user->id,
+            'requested_organization_name' => 'Acme Studio',
+            'contact_person_name' => 'Owner Name',
+            'contact_email' => 'owner@acme.test',
+            'timezone' => 'Asia/Karachi',
+            'industry' => 'Marketing Agency',
+            'organization_size' => '11-25',
+            'status' => 'pending',
+        ]);
+
+        $this->actingAs($user, 'web')
+            ->deleteJson("/api/organization-requests/{$request->id}")
+            ->assertOk()
+            ->assertJson([
+                'success' => true,
+                'message' => 'Organization request withdrawn successfully.',
+                'data' => null,
+            ]);
+
+        $this->assertDatabaseMissing('organization_access_requests', [
+            'id' => $request->id,
+        ]);
     }
 }

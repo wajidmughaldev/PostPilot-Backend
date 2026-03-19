@@ -10,18 +10,25 @@ class OrganizationAccessRequestResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->id,
-            'requested_organization_name' => $this->requested_organization_name,
-            'contact_email' => $this->contact_email,
-            'contact_phone' => $this->contact_phone,
-            'website_url' => $this->website_url,
-            'message' => $this->message,
+            'id' => (string) $this->id,
+            'name' => $this->requested_organization_name,
+            'contactPersonName' => $this->contact_person_name,
+            'contactPersonEmail' => $this->contact_email,
+            'contactPersonPhone' => $this->contact_phone,
+            'timezone' => $this->timezone,
+            'website' => $this->website_url,
+            'bio' => $this->bio,
+            'location' => $this->location,
+            'industry' => $this->industry,
+            'organizationSize' => $this->organization_size,
+            'requestedById' => (string) $this->user_id,
+            'requestedByName' => $this->whenLoaded('user', fn () => $this->user?->name, $this->user?->name),
+            'requestedByEmail' => $this->whenLoaded('user', fn () => $this->user?->email, $this->user?->email),
+            'requestedAt' => $this->created_at?->toISOString(),
             'status' => $this->status,
-            'review_notes' => $this->review_notes,
-            'reviewed_at' => $this->reviewed_at?->toISOString(),
-            'organization_id' => $this->organization_id,
-            'created_at' => $this->created_at?->toISOString(),
-            'updated_at' => $this->updated_at?->toISOString(),
+            'rejectionReason' => $this->review_notes,
+            'reviewedByName' => $this->whenLoaded('reviewer', fn () => $this->reviewer?->name, $this->reviewer?->name),
+            'reviewedAt' => $this->reviewed_at?->toISOString(),
         ];
     }
 }

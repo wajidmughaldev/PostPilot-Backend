@@ -13,9 +13,11 @@ class StoreOrganizationAccessRequestController extends Controller
         StoreOrganizationAccessRequest $request,
         OrganizationAccessRequestService $organizationAccessRequestService
     ): JsonResponse {
+        $payload = $organizationAccessRequestService->submit($request->user(), $request->validated());
+
         return $this->successResponse(
-            'Organization access request submitted successfully.',
-            $organizationAccessRequestService->submit($request->user(), $request->validated()),
+            'Organization request submitted successfully.',
+            $payload['organization_access_request'],
             201
         );
     }
