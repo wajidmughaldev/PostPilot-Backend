@@ -224,3 +224,88 @@ Registration polish checks:
 - submit an uppercase email and confirm it is stored lowercase
 - submit the register form multiple times quickly and confirm throttling eventually responds with a `429`
 - confirm successful registration redirects to `/login`
+
+========================================
+2026-03-19 Login Restart Test Notes
+========================================
+
+Current backend endpoints in scope:
+- `POST /api/login`
+- `GET /api/me`
+
+Frontend login payload:
+
+```json
+{
+  "email": "jane@example.com",
+  "password": "Secure123"
+}
+```
+
+Expected login success response:
+
+```json
+{
+  "success": true,
+  "message": "Login completed successfully.",
+  "data": {
+    "user": {
+      "id": 1,
+      "name": "Jane Doe",
+      "email": "jane@example.com"
+    },
+    "platformRole": "user",
+    "organizationAccess": {
+      "hasOrganization": false,
+      "organizationId": null,
+      "organizationName": null,
+      "organizationRole": null,
+      "permissions": {
+        "canInviteMembers": false
+      }
+    },
+    "organization": null,
+    "onboarding": {
+      "organization_required": true,
+      "organization_id": null,
+      "organization_request_status": null
+    }
+  }
+}
+```
+
+Expected invalid credentials response:
+
+```json
+{
+  "success": false,
+  "message": "The provided credentials are incorrect.",
+  "errors": {
+    "email": [
+      "The provided credentials are incorrect."
+    ]
+  }
+}
+```
+
+Expected guest `/api/me` response:
+
+```json
+{
+  "success": true,
+  "message": "No authenticated user found.",
+  "data": null
+}
+```
+
+Browser verification flow:
+- register a user
+- log in through the frontend `/login` page
+- confirm the browser first hits `/sanctum/csrf-cookie`
+- confirm `POST /api/login` returns `200`
+- confirm the app redirects to `/dashboard`
+- refresh once and confirm `GET /api/me` returns the authenticated user payload while the session is still valid
+
+Verification commands used for this chunk:
+- `php artisan test --filter=AuthEndpointsTest`
+- `php artisan route:list --path=login`

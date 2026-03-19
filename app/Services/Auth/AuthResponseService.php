@@ -20,11 +20,33 @@ class AuthResponseService
             ->latest()
             ->first();
 
+        $organization = $membership?->organization
+            ? OrganizationResource::make($membership->organization)->resolve()
+            : null;
+
+        $organizationRole = $membership?->role;
+
         return [
             'user' => AuthUserResource::make($user)->resolve(),
-            'organization' => $membership?->organization
-                ? OrganizationResource::make($membership->organization)->resolve()
-                : null,
+            'platformRole' => $user->platform_role ?? 'user',
+            'organizationAccess' => [
+                'hasOrganization' => $membership !== null,
+                'organizationId' => $membership?->organization_id,
+                'organizationName' => $membership?->organization?->name,
+                'organizationRole' => $organizationRole,
+                'permissions' => [
+                    'canViewAllPosts' => in_array($organizationRole, ['owner', 'manager'], true),
+                    'canManageAllPosts' => in_array($organizationRole, ['owner', 'manager'], true),
+                    'canConnectAccounts' => in_array($organizationRole, ['owner', 'manager'], true),
+                    'canDisconnectAccounts' => in_array($organizationRole, ['owner', 'manager'], true),
+                    'canInviteMembers' => $organizationRole === 'owner',
+                    'canViewLogs' => in_array($organizationRole, ['owner', 'manager'], true),
+                    'canViewAnalytics' => in_array($organizationRole, ['owner', 'manager'], true),
+                    'canUpdateOrganizationInfo' => $organizationRole === 'owner',
+                    'canDeleteOrganization' => $organizationRole === 'owner',
+                ],
+            ],
+            'organization' => $organization,
             'onboarding' => [
                 'organization_required' => $membership === null,
                 'organization_id' => $membership?->organization_id,

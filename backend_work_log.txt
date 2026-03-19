@@ -249,3 +249,42 @@ Registration Polish - Normalization, Throttle, Redirect
 - Build login next.
 - Add current session bootstrap and logout.
 - Consider a dedicated frontend field-level duplicate-email display once login is complete.
+
+========================================
+2026-03-19 / SESSION
+Backend Restart Chunk 2 - Login and Session Bootstrap
+========================================
+
+1. What was added
+- Added the root login endpoint `POST /api/login` so the restarted frontend can authenticate without using the older `/api/auth/*` path.
+- Added a guest-safe root current-user endpoint `GET /api/me` for frontend session bootstrap on page load.
+- Updated the login request to normalize email input and return human-friendly validation messages.
+- Expanded the auth response payload so the frontend receives `platformRole` and `organizationAccess` in the same response as the logged-in user.
+- Removed frontend mock-login fallback from the active login path and connected the login form directly to the real backend response.
+
+2. What each part does
+- `LoginRequest` now trims and lowercases the submitted email before validation so login behavior matches registration normalization.
+- `LoginController` still stays thin and delegates authentication to `LoginService`, which attempts the session login through Laravel's web guard and regenerates the session on success.
+- `AuthResponseService` now builds a frontend-friendly auth payload that includes the user, platform role, organization access summary, organization data, and onboarding state.
+- `MeController` now returns a success payload with `data: null` when no session exists on the root `/api/me` route, which lets the frontend bootstrap safely without treating guests as a hard API error.
+- The frontend login form now reads `response.data` directly, stores the session immediately, caches the current user query, and redirects to the dashboard.
+
+3. Important implementation decisions
+- The root `/api/me` route was made guest-safe because the frontend needs a simple session-bootstrap endpoint that can return either the authenticated user or `null` without error-driven control flow.
+- The older `/api/auth/me` route remains protected by `auth:sanctum`, so backend-protected behavior is still available for API-only consumers and later auth chunks.
+- `platformRole` now defaults to `user` when the database row has no explicit value so the frontend contract remains stable during the restart.
+- Mock login fallback was removed from the main login path to avoid mixing fake auth state with the rebuilt backend session flow.
+
+4. Notes for frontend integration
+- Active login endpoint is now `POST /api/login`.
+- Active session bootstrap endpoint is now `GET /api/me`.
+- Login success response shape is:
+- `{"success":true,"message":"Login completed successfully.","data":{"user":{...},"platformRole":"user","organizationAccess":{...},"organization":null,"onboarding":{...}}}`
+- Guest `GET /api/me` response shape is:
+- `{"success":true,"message":"No authenticated user found.","data":null}`
+- The login form no longer depends on a second `/me` fetch before it can establish session state.
+
+5. Pending or next steps
+- Build logout next on the root route so the restarted frontend can complete the auth cycle without `/api/auth/logout`.
+- Add frontend toast handling for throttling and invalid credentials if more UX polish is needed.
+- Review whether forgot-password and reset-password should also move to root routes for consistency in the next auth chunk.

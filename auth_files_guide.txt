@@ -365,3 +365,31 @@ Where to change registration next
   - `app/Http\Resources\AuthUserResource.php`
 - Change registration route exposure:
   - `routes/api.php`
+
+Login restart note
+------------------
+
+For the backend restart login chunk on 2026-03-19:
+- active frontend login route is `POST /api/login`
+- active frontend session bootstrap route is `GET /api/me`
+- login still uses Laravel session authentication through the `web` guard
+- login payload is returned through `AuthResponseService`, not assembled inside the controller
+- the main frontend login path no longer depends on mock fallback data
+
+Where to change login next
+--------------------------
+- Change login validation or email normalization:
+  - `app/Http/Requests/Auth/LoginRequest.php`
+- Change credential checking, remember-me behavior, or session regeneration:
+  - `app/Services/Auth/LoginService.php`
+- Change login response shape:
+  - `app/Services/Auth/AuthResponseService.php`
+  - `app/Http/Controllers/Auth/LoginController.php`
+- Change guest-safe current user bootstrap behavior:
+  - `app/Http/Controllers/Auth/MeController.php`
+- Change route exposure for login or me:
+  - `routes/api.php`
+- Update frontend login contract:
+  - `E:\PostPilot-Frontend\types\auth.ts`
+  - `E:\PostPilot-Frontend\lib\api\auth.ts`
+  - `E:\PostPilot-Frontend\components\forms\login-form.tsx`

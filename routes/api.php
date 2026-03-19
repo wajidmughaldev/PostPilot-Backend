@@ -24,10 +24,12 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::post('register', RegisterController::class)->middleware('throttle:6,1');
+Route::post('login', LoginController::class)->middleware('throttle:10,1');
+Route::get('me', MeController::class);
 
 Route::prefix('auth')->group(function () {
     Route::post('register', RegisterController::class)->middleware('throttle:6,1');
-    Route::post('login', LoginController::class);
+    Route::post('login', LoginController::class)->middleware('throttle:10,1');
     Route::post('forgot-password', ForgotPasswordController::class);
     Route::post('reset-password', ResetPasswordController::class);
 

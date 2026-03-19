@@ -95,7 +95,7 @@ class AuthEndpointsTest extends TestCase
             'password' => 'Secure123',
         ]);
 
-        $response = $this->postJson('/api/auth/login', [
+        $response = $this->postJson('/api/login', [
             'email' => $user->email,
             'password' => 'Secure123',
         ]);
@@ -109,6 +109,13 @@ class AuthEndpointsTest extends TestCase
                     'user' => [
                         'id' => $user->id,
                         'email' => $user->email,
+                    ],
+                    'platformRole' => 'user',
+                    'organizationAccess' => [
+                        'hasOrganization' => false,
+                        'organizationId' => null,
+                        'organizationName' => null,
+                        'organizationRole' => null,
                     ],
                     'onboarding' => [
                         'organization_required' => true,
@@ -127,8 +134,8 @@ class AuthEndpointsTest extends TestCase
             'password' => 'Secure123',
         ]);
 
-        $response = $this->postJson('/api/auth/login', [
-            'email' => 'jane@example.com',
+        $response = $this->postJson('/api/login', [
+            'email' => '  JANE@example.com ',
             'password' => 'Wrong123',
         ]);
 
@@ -174,7 +181,7 @@ class AuthEndpointsTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $response = $this->actingAs($user, 'web')->getJson('/api/auth/me');
+        $response = $this->actingAs($user, 'web')->getJson('/api/me');
 
         $response
             ->assertOk()
@@ -186,6 +193,13 @@ class AuthEndpointsTest extends TestCase
                         'id' => $user->id,
                         'email' => $user->email,
                     ],
+                    'platformRole' => 'user',
+                    'organizationAccess' => [
+                        'hasOrganization' => false,
+                        'organizationId' => null,
+                        'organizationName' => null,
+                        'organizationRole' => null,
+                    ],
                     'onboarding' => [
                         'organization_required' => true,
                         'organization_id' => null,
@@ -194,7 +208,18 @@ class AuthEndpointsTest extends TestCase
             ]);
     }
 
-    public function test_me_requires_authentication(): void
+    public function test_root_me_returns_null_payload_for_guest(): void
+    {
+        $this->getJson('/api/me')
+            ->assertOk()
+            ->assertJson([
+                'success' => true,
+                'message' => 'No authenticated user found.',
+                'data' => null,
+            ]);
+    }
+
+    public function test_auth_me_requires_authentication(): void
     {
         $this->getJson('/api/auth/me')
             ->assertUnauthorized()
