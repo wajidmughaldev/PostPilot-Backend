@@ -522,3 +522,33 @@ Browser verification flow:
 Verification commands used for this chunk:
 - `php artisan test --filter=Profile`
 - `php artisan route:list --path=profile`
+
+========================================
+2026-03-19 Delete Personal Account Test Notes
+========================================
+
+Current backend endpoint in scope:
+- `DELETE /api/profile`
+
+Request body:
+
+```json
+{
+  "current_password": "YourCurrentPassword"
+}
+```
+
+Browser verification flow:
+- log in
+- open settings popup
+- go to `Account`
+- enter current password in the danger zone
+- click `Delete Account`
+- confirm the browser confirmation dialog
+- confirm success toast appears
+- confirm the app redirects to `/login`
+- confirm the deleted account can no longer log in
+
+Verification commands used for this chunk:
+- `php artisan test --filter=DeleteAccountTest`
+- `php artisan test --filter=Profile`

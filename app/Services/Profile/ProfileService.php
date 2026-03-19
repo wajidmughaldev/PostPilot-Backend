@@ -4,6 +4,7 @@ namespace App\Services\Profile;
 
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
@@ -49,5 +50,22 @@ class ProfileService
         $user->forceFill([
             'password' => $data['password'],
         ])->save();
+    }
+
+    public function deleteAccount(User $user, array $data): void
+    {
+        if (! Hash::check($data['current_password'], $user->password)) {
+            throw ValidationException::withMessages([
+                'current_password' => ['Current password is incorrect.'],
+            ]);
+        }
+
+        DB::transaction(function () use ($user): void {
+            if ($user->avatar_path) {
+                Storage::disk('public')->delete($user->avatar_path);
+            }
+
+            $user->delete();
+        });
     }
 }

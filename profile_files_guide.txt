@@ -7,10 +7,12 @@ What this chunk covers
 - update display name, username, and email
 - update password with current-password verification
 - upload profile photo
+- delete personal account
 
 Backend routes
 --------------
 - `GET /api/profile`
+- `DELETE /api/profile`
 - `PATCH /api/profile`
 - `POST /api/profile/avatar`
 - `PATCH /api/profile/password`
@@ -69,8 +71,17 @@ Files and responsibilities
 13. `tests/Feature/Profile/ProfileEndpointsTest.php`
 - Locks profile fetch, profile update, duplicate validation, incorrect current password, and password update behavior.
 
-14. `tests/Feature/Profile/ProfileAvatarTest.php`
+14. `app/Http/Requests/Profile/DeleteAccountRequest.php`
+- Validates password confirmation input for destructive self-delete.
+
+15. `app/Http/Controllers/Profile/DeleteAccountController.php`
+- Logs the current session out, invalidates the session, and then deletes the authenticated user account.
+
+16. `tests/Feature/Profile/ProfileAvatarTest.php`
 - Locks avatar upload authentication and file storage behavior.
+
+17. `tests/Feature/Profile/DeleteAccountTest.php`
+- Locks self-delete authentication, incorrect current password handling, and successful account deletion behavior.
 
 Frontend integration points
 ---------------------------
@@ -99,9 +110,9 @@ Case 1: Add profile photo upload
 - local setup still requires `php artisan storage:link`
 
 Case 2: Add delete account
-- add a dedicated destructive action endpoint
-- require password confirmation
-- decide how organization ownership and related cleanup should be handled
+- done in the current chunk for personal account deletion
+- current implementation deletes the authenticated user after current-password confirmation
+- related memberships and access requests already clear safely through existing foreign keys
 
 Case 3: Add notification/preferences persistence
 - create a user settings table or add clearly scoped fields

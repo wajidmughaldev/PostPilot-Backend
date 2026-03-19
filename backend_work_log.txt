@@ -491,3 +491,36 @@ Profile Settings Chunk B - Profile Photo Upload
 5. Pending or next steps
 - Delete personal account is the next logical settings-related feature if you want to stay in the same module.
 - Notification and personalization tabs are still placeholder-only.
+
+========================================
+2026-03-19 / SESSION
+Profile Settings Chunk C - Delete Personal Account
+========================================
+
+1. What was added
+- Added backend self-delete account support through a dedicated `DELETE /api/profile` endpoint.
+- Added current-password confirmation for destructive account deletion.
+- Connected the settings popup danger zone to the real backend delete-account flow.
+
+2. What each part does
+- `DeleteAccountRequest` validates the current password input required for self-delete.
+- `DeleteAccountController` now ends the active session first and then deletes the authenticated user account.
+- `ProfileService` now contains the account deletion logic, including current-password verification and avatar file cleanup.
+- The frontend settings popup now shows a real danger zone with current-password entry and a delete action button.
+
+3. Important implementation decisions
+- Logout happens before deletion because Laravel's logout flow can touch remember-token state on the in-memory user model; doing it afterward can accidentally recreate the deleted row.
+- Account deletion requires the current password so destructive self-delete is not triggered by an open session alone.
+- Existing user-linked organization membership and access-request rows remain safe because those tables already use user foreign keys that cascade on delete.
+
+4. Notes for frontend integration
+- Active delete-account endpoint is:
+- `DELETE /api/profile`
+- Request body:
+- `{"current_password":"..."}`
+- The frontend now asks for the current password in the danger zone and shows a confirmation dialog before deletion.
+- On success, the frontend clears session state and redirects to `/login`.
+
+5. Pending or next steps
+- Notification and personalization tabs are still placeholders if you want to continue within settings.
+- Otherwise the next larger product module can start now.
